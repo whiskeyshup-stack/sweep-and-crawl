@@ -58,6 +58,15 @@ function renderInventory() {
             e.stopPropagation();
             showContextMenu(e, index);
         });
+        // Поддержка тапа на мобильных для открытия контекстного меню
+        el.addEventListener('touchend', e => {
+            e.preventDefault();
+            e.stopPropagation();
+            // Создаём фейковый объект с координатами касания
+            let touch = e.changedTouches[0];
+            let fakeEvent = { clientX: touch.clientX, clientY: touch.clientY, preventDefault: () => {}, stopPropagation: () => {} };
+            showContextMenu(fakeEvent, index);
+        }, { passive: false });
 
         // DRAG AND DROP
         // НОВОЕ: Запрещаем таскать вещи, если они надеты
@@ -210,16 +219,47 @@ function showContextMenu(e, index) {
         menu.appendChild(destroyBtn);
     }
 
-    menu.style.left = e.clientX + 'px';
-    menu.style.top = e.clientY + 'px';
+    // Позиционирование меню с учётом границ экрана
+    let menuX = e.clientX;
+    let menuY = e.clientY;
+    
+    // Показываем меню сначала невидимо, чтобы измерить его размеры
+    menu.style.left = '0px';
+    menu.style.top = '0px';
     menu.style.display = 'block';
+    let menuRect = menu.getBoundingClientRect();
+    
+    // Не даём меню вылезти за правый край
+    if (menuX + menuRect.width > window.innerWidth) {
+        menuX = window.innerWidth - menuRect.width - 10;
+    }
+    // Не даём вылезти за нижний край
+    if (menuY + menuRect.height > window.innerHeight) {
+        menuY = window.innerHeight - menuRect.height - 10;
+    }
+    // Не даём уйти за левый/верхний край
+    menuX = Math.max(5, menuX);
+    menuY = Math.max(5, menuY);
+    
+    menu.style.left = menuX + 'px';
+    menu.style.top = menuY + 'px';
 
-    // Отображение подробного тултипа слева от контекстного меню
+    // Отображение подробного тултипа
     let tooltip = document.getElementById('inv-item-tooltip');
     if (tooltip) {
         tooltip.innerHTML = getItemDescription(item);
-        tooltip.style.left = (e.clientX - 240) + 'px';
-        tooltip.style.top = e.clientY + 'px';
+        
+        // На узких экранах — показываем тултип ПОД меню
+        if (window.innerWidth <= 640) {
+            tooltip.style.left = Math.max(5, menuX) + 'px';
+            tooltip.style.top = (menuY + menuRect.height + 5) + 'px';
+            tooltip.style.width = Math.min(230, window.innerWidth - 20) + 'px';
+        } else {
+            // На десктопе — слева от меню
+            tooltip.style.left = (menuX - 240) + 'px';
+            tooltip.style.top = menuY + 'px';
+            tooltip.style.width = '230px';
+        }
         tooltip.style.display = 'block';
     }
 }
