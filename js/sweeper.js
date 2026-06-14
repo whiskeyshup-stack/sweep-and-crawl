@@ -853,8 +853,10 @@ canvas.addEventListener('mousemove', (e) => {
     if (gameState !== 'RAID') return;
 
     let rect = canvas.getBoundingClientRect();
-    let cx = Math.floor((e.clientX - rect.left + cameraX) / CELL_SIZE);
-    let cy = Math.floor((e.clientY - rect.top + cameraY) / CELL_SIZE);
+    let scaleX = canvas.width / rect.width;
+    let scaleY = canvas.height / rect.height;
+    let cx = Math.floor(((e.clientX - rect.left) * scaleX + cameraX) / CELL_SIZE);
+    let cy = Math.floor(((e.clientY - rect.top) * scaleY + cameraY) / CELL_SIZE);
 
     if (cx !== window.hoveredCellX || cy !== window.hoveredCellY) {
         if (cx >= 0 && cx < MAP_W && cy >= 0 && cy < MAP_H) {
@@ -881,13 +883,7 @@ canvas.addEventListener('mouseleave', () => {
 });
 
 // Взаимодействие с полем
-canvas.addEventListener('mousedown', (e) => {
-    if (gameState !== 'RAID') return;
-    window.newlyRevealedCells = [];
-    let rect = canvas.getBoundingClientRect();
-    let cx = Math.floor((e.clientX - rect.left + cameraX) / CELL_SIZE);
-    let cy = Math.floor((e.clientY - rect.top + cameraY) / CELL_SIZE);
-
+function handleBoardClick(cx, cy, isRightClick) {
     if (cx < 0 || cx >= MAP_W || cy < 0 || cy >= MAP_H) return;
     let cell = grid[cx][cy];
 
@@ -930,8 +926,8 @@ canvas.addEventListener('mousedown', (e) => {
         }
     }
 
-    // Установка флага на правый клик
-    if (e.button === 2) {
+    // Установка флага
+    if (isRightClick) {
         if (!cell.isRevealed) {
             cell.isFlagged = !cell.isFlagged;
             playSound('button');
@@ -1058,7 +1054,93 @@ canvas.addEventListener('mousedown', (e) => {
     }
     drawBoard();
     checkVictoryCondition();
+}
+
+canvas.addEventListener('mousedown', (e) => {
+    if (gameState !== 'RAID') return;
+    window.newlyRevealedCells = [];
+    let rect = canvas.getBoundingClientRect();
+    let scaleX = canvas.width / rect.width;
+    let scaleY = canvas.height / rect.height;
+    let cx = Math.floor(((e.clientX - rect.left) * scaleX + cameraX) / CELL_SIZE);
+    let cy = Math.floor(((e.clientY - rect.top) * scaleY + cameraY) / CELL_SIZE);
+    handleBoardClick(cx, cy, e.button === 2);
 });
+
+// Добавляем поддержку Touch-событий (Tap и Long Press) для мобильных устройств
+let touchStartX = 0;
+let touchStartY = 0;
+let touchTimer = null;
+let isLongPress = false;
+let touchMoved = false;
+
+canvas.addEventListener('touchstart', (e) => {
+    if (gameState !== 'RAID') return;
+    if (e.touches.length !== 1) return;
+    
+    window.newlyRevealedCells = [];
+    const touch = e.touches[0];
+    touchStartX = touch.clientX;
+    touchStartY = touch.clientY;
+    isLongPress = false;
+    touchMoved = false;
+    
+    if (touchTimer) clearTimeout(touchTimer);
+    
+    touchTimer = setTimeout(() => {
+        isLongPress = true;
+        let rect = canvas.getBoundingClientRect();
+        let scaleX = canvas.width / rect.width;
+        let scaleY = canvas.height / rect.height;
+        let cx = Math.floor(((touch.clientX - rect.left) * scaleX + cameraX) / CELL_SIZE);
+        let cy = Math.floor(((touch.clientY - rect.top) * scaleY + cameraY) / CELL_SIZE);
+        handleBoardClick(cx, cy, true); // Долгий тап ставит флаг
+        if (navigator.vibrate) {
+            navigator.vibrate(50); // Виброотклик
+        }
+    }, 500);
+}, { passive: true });
+
+canvas.addEventListener('touchmove', (e) => {
+    if (gameState !== 'RAID') return;
+    if (e.touches.length !== 1) return;
+    
+    const touch = e.touches[0];
+    const dist = Math.hypot(touch.clientX - touchStartX, touch.clientY - touchStartY);
+    if (dist > 15) {
+        touchMoved = true;
+        if (touchTimer) {
+            clearTimeout(touchTimer);
+            touchTimer = null;
+        }
+    }
+}, { passive: true });
+
+canvas.addEventListener('touchend', (e) => {
+    if (gameState !== 'RAID') return;
+    
+    if (touchTimer) {
+        clearTimeout(touchTimer);
+        touchTimer = null;
+    }
+    
+    if (isLongPress) {
+        e.preventDefault();
+        return;
+    }
+    
+    if (!touchMoved) {
+        e.preventDefault();
+        let rect = canvas.getBoundingClientRect();
+        let scaleX = canvas.width / rect.width;
+        let scaleY = canvas.height / rect.height;
+        const touch = e.changedTouches[0] || { clientX: touchStartX, clientY: touchStartY };
+        let cx = Math.floor(((touch.clientX - rect.left) * scaleX + cameraX) / CELL_SIZE);
+        let cy = Math.floor(((touch.clientY - rect.top) * scaleY + cameraY) / CELL_SIZE);
+        handleBoardClick(cx, cy, false); // Обычный тап открывает клетку
+    }
+}, { passive: false });
+
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 
 function battleEnemy(cell, cx, cy) {
