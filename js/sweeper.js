@@ -358,8 +358,10 @@ function isCellBlockedByEnemy(cx, cy) {
 }
 
 // --- КАМЕРА ---
-const VIEWPORT_W = 640;
-const VIEWPORT_H = 640;
+// На мобильных уменьшаем внутренний вьюпорт канваса, чтобы клетки были крупнее
+const IS_MOBILE = (window.innerWidth <= 640);
+let VIEWPORT_W = IS_MOBILE ? 320 : 640;
+let VIEWPORT_H = IS_MOBILE ? 320 : 640;
 let cameraX = 0;
 let cameraY = 0;
 
@@ -538,6 +540,23 @@ const ctx = canvas.getContext('2d');
 canvas.width = VIEWPORT_W;
 canvas.height = VIEWPORT_H;
 ctx.imageSmoothingEnabled = false;
+
+// Обработка смены ориентации / ресайза на мобильных
+window.addEventListener('resize', () => {
+    const wasMobile = IS_MOBILE;
+    const nowMobile = (window.innerWidth <= 640);
+    if (wasMobile !== nowMobile) {
+        VIEWPORT_W = nowMobile ? 320 : 640;
+        VIEWPORT_H = nowMobile ? 320 : 640;
+        canvas.width = VIEWPORT_W;
+        canvas.height = VIEWPORT_H;
+        ctx.imageSmoothingEnabled = false;
+        if (gameState === 'RAID') {
+            clampCamera();
+            drawBoard();
+        }
+    }
+});
 
 function drawBoard() {
     if (gameState !== 'RAID') return;

@@ -602,10 +602,18 @@ canvas {
         max-width: 450px;
     }
 
-    /* Джойстик камеры внутри игрового поля */
+    /* Джойстик камеры — выносим ПОД игровое поле, чтобы не мешал */
     #camera-pad {
-        left: 20px;
-        bottom: 20px;
+        position: relative;
+        left: auto;
+        bottom: auto;
+        margin: 10px auto 0 auto;
+    }
+
+    #board-wrapper {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
     }
 }
 
