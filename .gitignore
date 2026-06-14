@@ -1,0 +1,12 @@
+# Visual Studio
+.vs/
+*.slnx
+
+# Служебные файлы
+*.py
+parse_full_tool_call.py
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini

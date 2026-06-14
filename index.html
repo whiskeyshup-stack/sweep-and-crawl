@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Sweep & Crawl</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <h1>SWEEP & CRAWL</h1>
+
+    <div id="welcome-screen" style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 20px; background: #1e1e1e; padding: 40px; border: 4px solid #444; border-radius: 8px; max-width: 600px; text-align: center; margin-top: 20px; box-shadow: 0 0 20px rgba(255, 204, 0, 0.2);">
+        <p style="font-size: 8px; line-height: 1.8; color: #88ff88; max-width: 480px; margin: 0; text-align: center;">
+            Приветствую тебя, путник! Наше королевство было заминировано злым колдуном и усеяно его злобными прихвостнями. Тебе предстоит отправиться в путь и освободить наши земли от гнуса и скверны.<br><br>
+            Как только ты одолеешь всех врагов и откроешь безопасные участки земли, твоя миссия будет завершена.<br><br>
+            Как сапёр высшего класса, ты практически бессмертен. Но будь осторожен: при потере сознания ты потеряешь всё содержимое своих карманов! Собирай осколки душ, что остаются от миньонов колдуна — они помогут тебе стать сильнее.<br><br>
+            Удачи, солдат!
+        </p>
+        
+        <div style="border: 2px dashed #555; padding: 15px; text-align: left; font-size: 7px; line-height: 1.6; color: #aaa; width: 100%; max-width: 450px; background: rgba(0,0,0,0.2);">
+            <div style="color: #ffcc00; text-align: center; margin-bottom: 8px; font-size: 8px;">🎮 УПРАВЛЕНИЕ</div>
+            • 🖱️ ЛКМ — Открыть клетку / Атаковать врага<br>
+            • 🖱️ ПКМ — Поставить флаг (пометить мину)<br>
+            • ⌨️ WASD / Стрелочки — Перемещение камеры<br>
+            • 🛡️ Цифры показывают количество мин вокруг!
+        </div>
+
+        <button id="btn-start-game" class="btn-upgrade" style="font-size: 10px; padding: 15px 30px; cursor: pointer; min-width: 200px; margin-top: 10px; border-radius: 4px;" onclick="startGame()">ИГРАТЬ</button>
+    </div>
+
+    <div id="hub-screen" style="display: none;">
+        <!-- Панель настроек звука -->
+        <div style="width: 170px; display: flex; flex-direction: column; gap: 15px; border-right: 1px solid #444; padding-right: 15px;">
+            <h2 style="margin-top:0; text-align:center; font-size:10px;">⚙️ НАСТРОЙКИ</h2>
+            
+            <!-- Общий звук -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:8px;">
+                    <span>ОБЩИЙ ЗВУК</span>
+                    <div id="mute-master" class="sound-checkbox checked" onclick="toggleMute('master')"></div>
+                </div>
+                <input type="range" id="slider-master" class="sound-slider" min="0" max="100" value="100" oninput="changeVolume('master', this.value)">
+            </div>
+
+            <!-- Музыка -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:8px;">
+                    <span>МУЗЫКА</span>
+                    <div id="mute-music" class="sound-checkbox checked" onclick="toggleMute('music')"></div>
+                </div>
+                <input type="range" id="slider-music" class="sound-slider" min="0" max="100" value="100" oninput="changeVolume('music', this.value)">
+            </div>
+
+            <!-- Эффекты -->
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; font-size:8px;">
+                    <span>ЭФФЕКТЫ</span>
+                    <div id="mute-sfx" class="sound-checkbox checked" onclick="toggleMute('sfx')"></div>
+                </div>
+                <input type="range" id="slider-sfx" class="sound-slider" min="0" max="100" value="100" oninput="changeVolume('sfx', this.value)">
+            </div>
+
+            <!-- Язык / Language -->
+            <div style="display:flex; flex-direction:column; gap:6px; margin-top: 5px;">
+                <div style="font-size:8px; text-align:center; margin-bottom: 2px;">ЯЗЫК / LANGUAGE</div>
+                <div style="display:flex; gap:10px; justify-content:center; width:100%;">
+                    <button id="lang-ru-btn" class="btn-upgrade" style="padding:4px 8px; font-size:8px; min-width:0; flex:1;" onclick="setLanguage('ru')">RU</button>
+                    <button id="lang-en-btn" class="btn-upgrade" style="padding:4px 8px; font-size:8px; min-width:0; flex:1;" onclick="setLanguage('en')">EN</button>
+                </div>
+            </div>
+
+            <!-- Кнопка сброса сейва перенесена сюда -->
+            <div style="margin-top: 10px;">
+                <button class="btn-reset" style="width: 100%; font-size: 8px; padding: 10px;" onclick="resetGame()">❌ СБРОСИТЬ СЕЙВ</button>
+            </div>
+        </div>
+
+        <div>
+            <h2 style="margin-top:0;">📦 ХРАНИЛИЩЕ</h2>
+            <div id="stash-grid" class="inv-grid" data-container="stash" style="width: 388px; height: 388px;"></div>
+        </div>
+        <div style="width: 210px;">
+            <h2 style="margin-top:0; text-align:center;">👤 ГЕРОЙ</h2>
+            <div class="stat-line" style="font-size:10px;">🪙 ЗОЛОТО: <span id="hub-gold" style="color: gold;">0</span></div>
+            <div class="stat-line" style="font-size:10px;">🔮 ДУШИ: <span id="hub-shards" style="color: #a020f0;">0</span></div>
+            <div class="stat-line" style="font-size:10px;">🏆 ПОБЕДЫ: <span id="hub-wins" style="color: #00ffff;">0</span></div>
+            <div class="stat-line" style="font-size:10px; margin-bottom:15px; color: #ff5555; align-items: center;">
+                <span>💀 УГРОЗА:</span>
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <button onclick="changeRaidLevel(-1)" class="btn-upgrade" style="min-width: 16px; padding: 2px;">&lt;</button>
+                    <span id="hub-raid-lvl">0</span>
+                    <button onclick="changeRaidLevel(1)" class="btn-upgrade" style="min-width: 16px; padding: 2px;">&gt;</button>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 15px; text-align: center;">
+                <button id="buy-shards-btn" class="btn-upgrade" style="padding: 5px; width: 100%; font-family: 'Press Start 2P', monospace; font-size: 8px;" onclick="buyShards()">
+                    Купить 5🔮 за 100🪙
+                </button>
+            </div>
+
+            <div id="equipment-parent-hub">
+                <div id="equipment-panel" style="display: flex; gap: 15px; justify-content: center; align-items: center; margin-bottom: 15px;">
+                    <div>
+                        <div style="font-size:8px; text-align:center; color:#888; margin-bottom:4px;">МЕЧ</div>
+                        <div id="slot-sword" class="inv-grid equip-slot" data-container="equip_sword" style="width: 32px; height: 96px;"></div>
+                    </div>
+                    <div>
+                        <div style="font-size:8px; text-align:center; color:#888; margin-bottom:4px;">БРОНЯ</div>
+                        <div id="slot-armor" class="inv-grid equip-slot" data-container="equip_armor" style="width: 64px; height: 64px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <div style="margin-top: 15px; border-top: 1px solid #444; padding-top: 10px;">
+                <div style="font-size:9px; text-align:center; color:#ffcc00; margin-bottom:12px;">🔮 УЛУЧШЕНИЯ</div>
+                <div class="upgrade-row">
+                    <span>⚔️ УРОН: <span id="hub-atk">5</span></span>
+                    <button id="up-atk-btn" class="btn-upgrade" onclick="upgradeStat('atk')">+1 (10🔮)</button>
+                </div>
+                <div class="upgrade-row">
+                    <span>❤️ ХП: <span id="hub-hp">100</span></span>
+                    <button id="up-hp-btn" class="btn-upgrade" onclick="upgradeStat('hp')">+10 (15🔮)</button>
+                </div>
+                <div class="upgrade-row">
+                    <span>🛡️ ДЕФ: <span id="hub-arm">0</span></span>
+                    <button id="up-arm-btn" class="btn-upgrade" onclick="upgradeStat('arm')">+1 (20🔮)</button>
+                </div>
+            </div>
+
+            <button id="btn-raid" onclick="startRaid()">В РЕЙД</button>
+        </div>
+    </div>
+
+    <div id="raid-screen">
+        <div id="board-wrapper">
+            <canvas id="gameCanvas"></canvas>
+            <div id="camera-pad">
+                <button class="cam-btn cam-ul" onmousedown="startContinuousCameraMove(-1, -1)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(-1, -1)" ontouchend="stopContinuousCameraMove()"></button>
+                <button class="cam-btn cam-u" onmousedown="startContinuousCameraMove(0, -1)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(0, -1)" ontouchend="stopContinuousCameraMove()"></button>
+                <button class="cam-btn cam-ur" onmousedown="startContinuousCameraMove(1, -1)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(1, -1)" ontouchend="stopContinuousCameraMove()"></button>
+                <button class="cam-btn cam-l" onmousedown="startContinuousCameraMove(-1, 0)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(-1, 0)" ontouchend="stopContinuousCameraMove()"></button>
+                <div></div>
+                <button class="cam-btn cam-r" onmousedown="startContinuousCameraMove(1, 0)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(1, 0)" ontouchend="stopContinuousCameraMove()"></button>
+                <button class="cam-btn cam-dl" onmousedown="startContinuousCameraMove(-1, 1)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(-1, 1)" ontouchend="stopContinuousCameraMove()"></button>
+                <button class="cam-btn cam-d" onmousedown="startContinuousCameraMove(0, 1)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(0, 1)" ontouchend="stopContinuousCameraMove()"></button>
+                <button class="cam-btn cam-dr" onmousedown="startContinuousCameraMove(1, 1)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(1, 1)" ontouchend="stopContinuousCameraMove()"></button>
+            </div>
+        </div>
+        <div id="gui-panel">
+            <div>
+                <div class="stat-line"><span>❤️ ХП:</span><span id="hp-txt-val">100/100</span></div>
+                <div id="hp-bar-wrapper">
+                    <div id="hp-bar"></div>
+                    <div id="hp-text">100 / 100</div>
+                </div>
+            </div>
+            <div class="stat-line">⚔️ УРОН: <span id="atk-val">5</span></div>
+            <div class="stat-line">🛡️ ЗАЩИТА: <span id="arm-val">0</span></div>
+
+            <div id="equipment-parent-raid" style="margin-top: 10px; margin-bottom: 10px;"></div>
+
+            <hr style="border-color:#444; width:100%;">
+            <div style="text-align: center; color: #aaa;">🎒 КАРМАНЫ</div>
+            <div id="pockets-grid" class="inv-grid" data-container="pockets" style="width: 196px; height: 260px;"></div>
+        </div>
+    </div>
+
+    <div id="event-log" style="display: none;"></div>
+
+    <div id="inv-context-menu" style="display: none; position: absolute; background: #222; border: 2px solid #555; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5); padding: 5px 0; border-radius: 4px; min-width: 120px;"></div>
+    <div id="inv-item-tooltip" style="display: none; position: absolute; background: #222; border: 2px solid #555; z-index: 1000; box-shadow: 0 4px 10px rgba(0,0,0,0.5); padding: 10px; border-radius: 4px; width: 230px; font-family: monospace; color: #fff; line-height: 1.4; pointer-events: none;"></div>
+
+    <!-- Кастомное Модальное Окно -->
+    <div id="custom-modal-overlay" class="modal-overlay hidden">
+        <div class="modal-box">
+            <div id="custom-modal-title" class="modal-title">ВНИМАНИЕ</div>
+            <div id="custom-modal-message" class="modal-message">Сообщение...</div>
+            <div class="modal-buttons">
+                <button id="custom-modal-ok" class="modal-btn">ОК</button>
+                <button id="custom-modal-cancel" class="modal-btn hidden">ОТМЕНА</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="js/config.js"></script>
+    <script src="js/inventory.js"></script>
+    <script src="js/sweeper.js"></script>
+    <script src="js/main.js"></script>
+</body>
+
+</html>
