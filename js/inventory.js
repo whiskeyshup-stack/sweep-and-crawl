@@ -90,39 +90,39 @@ function getItemDescription(item) {
     if (item.rarity === 'green') { rarityColor = '#4caf50'; rarityName = t('item_rarity_rare'); }
     if (item.rarity === 'red') { rarityColor = '#f44336'; rarityName = t('item_rarity_legendary'); }
 
-    html += `<div style="font-size: 14px; font-weight: bold; color: ${rarityColor}; border-bottom: 1px solid #444; padding-bottom: 6px; margin-bottom: 8px;">${getItemName(item)}</div>`;
-    html += `<div style="font-size: 10px; color: #888; margin-bottom: 6px;">${t('item_label', { rarity: rarityName })}</div>`;
+    html += `<div style="font-size: 10px; font-weight: bold; color: ${rarityColor}; border-bottom: 1px solid #444; padding-bottom: 6px; margin-bottom: 8px;">${getItemName(item)}</div>`;
+    html += `<div style="font-size: 7px; color: #888; margin-bottom: 6px;">${t('item_label', { rarity: rarityName })}</div>`;
 
     if (item.type === 'weapon') {
-        html += `<div style="color: #ffcc00; font-size: 12px; margin-bottom: 4px;">${t('item_weapon_val', { val: item.val })}</div>`;
+        html += `<div style="color: #ffcc00; font-size: 8px; margin-bottom: 4px;">${t('item_weapon_val', { val: item.val })}</div>`;
         if (item.qualityVal !== undefined) {
-            html += `<div style="font-size: 10px; color: #aaa; margin-bottom: 4px;">${t('item_quality_lvl', { quality: item.qualityVal, lvl: item.lvl })}</div>`;
+            html += `<div style="font-size: 7px; color: #aaa; margin-bottom: 4px;">${t('item_quality_lvl', { quality: item.qualityVal, lvl: item.lvl })}</div>`;
         }
-        html += `<div style="margin-top: 8px; font-size: 11px; color: #bbb; line-height: 1.3;">${t('item_weapon_desc')}</div>`;
+        html += `<div style="margin-top: 8px; font-size: 7px; color: #bbb; line-height: 1.5;">${t('item_weapon_desc')}</div>`;
     } else if (item.type === 'armor') {
-        html += `<div style="color: #448aff; font-size: 12px; margin-bottom: 4px;">${t('item_armor_val', { val: item.val })}</div>`;
+        html += `<div style="color: #448aff; font-size: 8px; margin-bottom: 4px;">${t('item_armor_val', { val: item.val })}</div>`;
         if (item.qualityVal !== undefined) {
-            html += `<div style="font-size: 10px; color: #aaa; margin-bottom: 4px;">${t('item_quality_lvl', { quality: item.qualityVal, lvl: item.lvl })}</div>`;
+            html += `<div style="font-size: 7px; color: #aaa; margin-bottom: 4px;">${t('item_quality_lvl', { quality: item.qualityVal, lvl: item.lvl })}</div>`;
         }
-        html += `<div style="margin-top: 8px; font-size: 11px; color: #bbb; line-height: 1.3;">${t('item_armor_desc')}</div>`;
+        html += `<div style="margin-top: 8px; font-size: 7px; color: #bbb; line-height: 1.5;">${t('item_armor_desc')}</div>`;
     } else if (item.type === 'food') {
-        html += `<div style="color: #8bc34a; font-size: 12px; margin-bottom: 4px;">${t('item_food_val')}</div>`;
-        html += `<div style="margin-top: 8px; font-size: 11px; color: #bbb; line-height: 1.3;">${t('item_food_desc')}</div>`;
+        html += `<div style="color: #8bc34a; font-size: 8px; margin-bottom: 4px;">${t('item_food_val')}</div>`;
+        html += `<div style="margin-top: 8px; font-size: 7px; color: #bbb; line-height: 1.5;">${t('item_food_desc')}</div>`;
     } else if (item.type === 'potion_small') {
-        html += `<div style="color: #8bc34a; font-size: 12px; margin-bottom: 4px;">${t('item_potion_small_val')}</div>`;
-        html += `<div style="margin-top: 8px; font-size: 11px; color: #bbb; line-height: 1.3;">${t('item_potion_small_desc')}</div>`;
+        html += `<div style="color: #8bc34a; font-size: 8px; margin-bottom: 4px;">${t('item_potion_small_val')}</div>`;
+        html += `<div style="margin-top: 8px; font-size: 7px; color: #bbb; line-height: 1.5;">${t('item_potion_small_desc')}</div>`;
     } else if (item.type === 'potion_big') {
-        html += `<div style="color: #8bc34a; font-size: 12px; margin-bottom: 4px;">${t('item_potion_big_val')}</div>`;
-        html += `<div style="margin-top: 8px; font-size: 11px; color: #bbb; line-height: 1.3;">${t('item_potion_big_desc')}</div>`;
+        html += `<div style="color: #8bc34a; font-size: 8px; margin-bottom: 4px;">${t('item_potion_big_val')}</div>`;
+        html += `<div style="margin-top: 8px; font-size: 7px; color: #bbb; line-height: 1.5;">${t('item_potion_big_desc')}</div>`;
     } else if (item.type === 'scroll_dmg') {
-        html += `<div style="color: #ff5722; font-size: 12px; margin-bottom: 4px;">${t('item_scroll_dmg_val')}</div>`;
-        html += `<div style="margin-top: 8px; font-size: 11px; color: #bbb; line-height: 1.3;">${t('item_scroll_dmg_desc')}</div>`;
+        html += `<div style="color: #ff5722; font-size: 8px; margin-bottom: 4px;">${t('item_scroll_dmg_val')}</div>`;
+        html += `<div style="margin-top: 8px; font-size: 7px; color: #bbb; line-height: 1.5;">${t('item_scroll_dmg_desc')}</div>`;
     } else if (item.type === 'scroll_invis') {
-        html += `<div style="color: #00bcd4; font-size: 12px; margin-bottom: 4px;">${t('item_scroll_invis_val')}</div>`;
-        html += `<div style="margin-top: 8px; font-size: 11px; color: #bbb; line-height: 1.3;">${t('item_scroll_invis_desc')}</div>`;
+        html += `<div style="color: #00bcd4; font-size: 8px; margin-bottom: 4px;">${t('item_scroll_invis_val')}</div>`;
+        html += `<div style="margin-top: 8px; font-size: 7px; color: #bbb; line-height: 1.5;">${t('item_scroll_invis_desc')}</div>`;
     } else if (item.type === 'scroll_tp') {
-        html += `<div style="color: #9c27b0; font-size: 12px; margin-bottom: 4px;">${t('item_scroll_tp_val')}</div>`;
-        html += `<div style="margin-top: 8px; font-size: 11px; color: #bbb; line-height: 1.3;">${t('item_scroll_tp_desc')}</div>`;
+        html += `<div style="color: #9c27b0; font-size: 8px; margin-bottom: 4px;">${t('item_scroll_tp_val')}</div>`;
+        html += `<div style="margin-top: 8px; font-size: 7px; color: #bbb; line-height: 1.5;">${t('item_scroll_tp_desc')}</div>`;
     }
 
     return html;
@@ -220,22 +220,28 @@ function showContextMenu(e, index) {
     }
 
     // Позиционирование меню с учётом границ экрана
-    let menuX = e.clientX;
-    let menuY = e.clientY;
+    let currentZoom = parseFloat(getComputedStyle(document.body).zoom) || 1.0;
+    let menuX = e.clientX / currentZoom;
+    let menuY = e.clientY / currentZoom;
     
     // Показываем меню сначала невидимо, чтобы измерить его размеры
     menu.style.left = '0px';
     menu.style.top = '0px';
     menu.style.display = 'block';
     let menuRect = menu.getBoundingClientRect();
+    let menuW = menuRect.width / currentZoom;
+    let menuH = menuRect.height / currentZoom;
+    
+    let docW = window.innerWidth / currentZoom;
+    let docH = window.innerHeight / currentZoom;
     
     // Не даём меню вылезти за правый край
-    if (menuX + menuRect.width > window.innerWidth) {
-        menuX = window.innerWidth - menuRect.width - 10;
+    if (menuX + menuW > docW) {
+        menuX = docW - menuW - 10;
     }
     // Не даём вылезти за нижний край
-    if (menuY + menuRect.height > window.innerHeight) {
-        menuY = window.innerHeight - menuRect.height - 10;
+    if (menuY + menuH > docH) {
+        menuY = docH - menuH - 10;
     }
     // Не даём уйти за левый/верхний край
     menuX = Math.max(5, menuX);
@@ -250,10 +256,10 @@ function showContextMenu(e, index) {
         tooltip.innerHTML = getItemDescription(item);
         
         // На узких экранах — показываем тултип ПОД меню
-        if (window.innerWidth <= 640) {
+        if (docW <= 640) {
             tooltip.style.left = Math.max(5, menuX) + 'px';
-            tooltip.style.top = (menuY + menuRect.height + 5) + 'px';
-            tooltip.style.width = Math.min(230, window.innerWidth - 20) + 'px';
+            tooltip.style.top = (menuY + menuH + 5) + 'px';
+            tooltip.style.width = Math.min(230, docW - 20) + 'px';
         } else {
             // На десктопе — слева от меню
             tooltip.style.left = (menuX - 240) + 'px';
@@ -351,9 +357,10 @@ Object.keys(GRIDS).forEach(cName => {
 
         let index = parseInt(e.dataTransfer.getData('text/plain'));
         let item = items[index];
+        let currentZoom = parseFloat(getComputedStyle(document.body).zoom) || 1.0;
         let rect = el.getBoundingClientRect();
-        let targetX = Math.floor((e.clientX - rect.left) / TILE_SIZE);
-        let targetY = Math.floor((e.clientY - rect.top) / TILE_SIZE);
+        let targetX = Math.floor(((e.clientX - rect.left) / currentZoom) / TILE_SIZE);
+        let targetY = Math.floor(((e.clientY - rect.top) / currentZoom) / TILE_SIZE);
 
         if (GRIDS[cName].restrict && item.type !== GRIDS[cName].restrict) return renderInventory();
 
