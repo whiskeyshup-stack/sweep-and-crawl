@@ -42,9 +42,13 @@ function showHub() {
     document.getElementById('hub-hp').innerText = player.maxHp;
     document.getElementById('hub-arm').innerText = player.armor;
 
-    document.getElementById('up-atk-btn').disabled = player.shards < 10;
-    document.getElementById('up-hp-btn').disabled = player.shards < 15;
-    document.getElementById('up-arm-btn').disabled = player.shards < 20;
+    let atkCost = 10 + (player.baseAtk - 5) * 5;
+    let hpCost = 15 + Math.floor((player.maxHp - 100) / 10) * 5;
+    let armCost = 20 + player.armor * 10;
+
+    document.getElementById('up-atk-btn').disabled = player.shards < atkCost;
+    document.getElementById('up-hp-btn').disabled = player.shards < hpCost;
+    document.getElementById('up-arm-btn').disabled = player.shards < armCost;
 
     const buyBtn = document.getElementById('buy-shards-btn');
     if (buyBtn) buyBtn.disabled = player.gold < 100;
@@ -71,22 +75,31 @@ function changeRaidLevel(delta) {
 }
 function upgradeStat(stat) {
     let success = false;
-    if (stat === 'atk' && player.shards >= 10) {
-        player.shards -= 10;
-        player.baseAtk += 1;
-        logEvent(t('msg_stat_upgraded'), "log-sys");
-        success = true;
-    } else if (stat === 'hp' && player.shards >= 15) {
-        player.shards -= 15;
-        player.maxHp += 10;
-        player.hp = player.maxHp;
-        logEvent(t('msg_stat_upgraded'), "log-sys");
-        success = true;
-    } else if (stat === 'arm' && player.shards >= 20) {
-        player.shards -= 20;
-        player.armor += 1;
-        logEvent(t('msg_stat_upgraded'), "log-sys");
-        success = true;
+    if (stat === 'atk') {
+        let cost = 10 + (player.baseAtk - 5) * 5;
+        if (player.shards >= cost) {
+            player.shards -= cost;
+            player.baseAtk += 1;
+            logEvent(t('msg_stat_upgraded'), "log-sys");
+            success = true;
+        }
+    } else if (stat === 'hp') {
+        let cost = 15 + Math.floor((player.maxHp - 100) / 10) * 5;
+        if (player.shards >= cost) {
+            player.shards -= cost;
+            player.maxHp += 10;
+            player.hp = player.maxHp;
+            logEvent(t('msg_stat_upgraded'), "log-sys");
+            success = true;
+        }
+    } else if (stat === 'arm') {
+        let cost = 20 + player.armor * 10;
+        if (player.shards >= cost) {
+            player.shards -= cost;
+            player.armor += 1;
+            logEvent(t('msg_stat_upgraded'), "log-sys");
+            success = true;
+        }
     }
     if (success) {
         playSound('shop' + (Math.floor(Math.random() * 3) + 1));
@@ -112,7 +125,7 @@ function buyShards() {
 function startRaid() {
     gameState = 'RAID';
     playSound('raidstart');
-    playMusic('music2');
+    playMusic(Math.random() < 0.5 ? 'music1' : 'music2');
     player.isInvulnerable = false;
     player.invulnCharges = 0;
 
@@ -166,7 +179,19 @@ function startRaid() {
     firstClick = false;
     logEvent(t('msg_raid_start_log', { lvl: activeLevel }), "log-sys");
     updateUi();
-    drawBoard();
+
+    // Инициализация системы облаков для нового рейда
+    window.lastCloudUpdate = Date.now();
+    if (typeof initClouds === 'function') {
+        initClouds();
+    }
+
+    // Запуск оптимизированного анимационного цикла отрисовки
+    if (typeof startGameLoop === 'function') {
+        startGameLoop();
+    } else {
+        drawBoard();
+    }
 }
 
 function updateUi() {
@@ -176,8 +201,9 @@ function updateUi() {
         player.hp = player.maxHp;
     }
 
-    document.getElementById('hp-txt-val').innerText = `${player.hp}/${player.maxHp}`;
-    document.getElementById('hp-text').innerText = `${player.hp} / ${player.maxHp}`;
+    let displayHp = Math.floor(player.hp);
+    document.getElementById('hp-txt-val').innerText = `${displayHp}/${player.maxHp}`;
+    document.getElementById('hp-text').innerText = `${displayHp} / ${player.maxHp}`;
     document.getElementById('hp-bar').style.width = `${Math.max(0, (player.hp / player.maxHp) * 100)}%`;
 
     document.getElementById('atk-val').innerText = player.baseAtk + getEquipStat('weapon');
@@ -338,10 +364,33 @@ function startGame() {
 loadGame(); // Сначала загружаем данные игрока
 showWelcome();  // Затем инициализируем и показываем приветственный экран
 
-// Запускаем легкий фоновый таймер на ~12 кадров в секунду (каждые 83 миллисекунды).
-// Он заставит деревья плавно качаться волнами от ветра без дикой нагрузки на процессор.
-setInterval(() => {
+// --- ИГРОВОЙ АНИМАЦИОННЫЙ ЦИКЛ (ОПТИМИЗАЦИЯ requestAnimationFrame с лимитом 30 FPS) ---
+let animationFrameId = null;
+let lastRenderTime = 0;
+const FPS_LIMIT = 30;
+const FRAME_DURATION = 1000 / FPS_LIMIT; // ~33.3ms
+
+function gameLoop(currentTime) {
     if (gameState === 'RAID') {
-        drawBoard();
+        if (!currentTime) currentTime = performance.now();
+        let elapsed = currentTime - lastRenderTime;
+
+        if (elapsed >= FRAME_DURATION) {
+            lastRenderTime = currentTime - (elapsed % FRAME_DURATION);
+            if (typeof drawBoard === 'function') {
+                drawBoard();
+            }
+        }
+        animationFrameId = requestAnimationFrame(gameLoop);
+    } else {
+        animationFrameId = null;
     }
-}, 83);
+}
+
+function startGameLoop() {
+    if (!animationFrameId) {
+        window.lastCloudUpdate = Date.now();
+        lastRenderTime = performance.now();
+        animationFrameId = requestAnimationFrame(gameLoop);
+    }
+}

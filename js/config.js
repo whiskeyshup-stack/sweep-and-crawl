@@ -64,6 +64,9 @@ loadImg('effect_click', 'Effect/click.png');
 loadImg('effect_smoke', 'Effect/Smoke.png');
 loadImg('effect_smoke2', 'Effect/Smoke2.png');
 loadImg('flag', 'flag.png');
+loadImg('orc_death', 'Orc-Death.png');
+loadImg('soldier_death', 'Soldier-Death_cr.png');
+loadImg('afterboom', 'afterboom.png');
 
 // --- ЗВУКОВАЯ СИСТЕМА ---
 const sounds = {};
@@ -187,15 +190,23 @@ function playSound(name) {
 // Музыкальный плеер (только один экземпляр)
 let currentMusic = null;
 function playMusic(name) {
-    if (currentMusic === sounds[name]) return;
-    
-    if (currentMusic) {
-        currentMusic.pause();
-        currentMusic.currentTime = 0;
-    }
-    
     if (sounds[name]) {
-        currentMusic = sounds[name];
+        let sameTrack = (currentMusic === sounds[name]);
+        if (!sameTrack) {
+            if (currentMusic) {
+                currentMusic.pause();
+                currentMusic.currentTime = 0;
+            }
+            currentMusic = sounds[name];
+        } else {
+            // Если тот же трек уже играет и активен, ничего не делаем.
+            // Но если он на паузе / закончился, перематываем в начало и запускаем.
+            if (!currentMusic.paused && currentMusic.currentTime > 0 && !currentMusic.ended) {
+                return;
+            }
+            currentMusic.currentTime = 0;
+        }
+
         // Если мы в рейде, музыка НЕ зацикливается, чтобы они сменяли друг друга
         currentMusic.loop = (gameState !== 'RAID');
         
@@ -211,18 +222,20 @@ function playMusic(name) {
     }
 }
 
-// Переключение музыки в рейде по окончании трека
+// Переключение музыки в рейде по окончании трека (выбираем случайно между music1 и music2)
 if (sounds['music1']) {
     sounds['music1'].addEventListener('ended', () => {
         if (gameState === 'RAID') {
-            playMusic('music2');
+            let nextTrack = Math.random() < 0.5 ? 'music1' : 'music2';
+            playMusic(nextTrack);
         }
     });
 }
 if (sounds['music2']) {
     sounds['music2'].addEventListener('ended', () => {
         if (gameState === 'RAID') {
-            playMusic('music1');
+            let nextTrack = Math.random() < 0.5 ? 'music1' : 'music2';
+            playMusic(nextTrack);
         }
     });
 }
@@ -236,7 +249,7 @@ function stopMusic() {
 }
 
 // Кастомная система модальных окон
-function showCustomModal(message, title = "Внимание", showCancel = false) {
+function showCustomModal(message, title = null, showCancel = false) {
     return new Promise((resolve) => {
         const overlay = document.getElementById('custom-modal-overlay');
         const titleEl = document.getElementById('custom-modal-title');
@@ -244,8 +257,13 @@ function showCustomModal(message, title = "Внимание", showCancel = false
         const okBtn = document.getElementById('custom-modal-ok');
         const cancelBtn = document.getElementById('custom-modal-cancel');
         
-        titleEl.textContent = title;
+        let finalTitle = title || t('modal_title_attention');
+        titleEl.textContent = finalTitle;
         msgEl.innerHTML = message.replace(/\n/g, '<br>');
+        
+        // Локализация кнопок
+        okBtn.textContent = t('modal_ok');
+        cancelBtn.textContent = t('modal_cancel');
         
         if (showCancel) {
             cancelBtn.classList.remove('hidden');
@@ -836,6 +854,12 @@ function applyLanguage() {
     
     const raidHpLabel = document.querySelector('#raid-screen .stat-line span');
     if (raidHpLabel) raidHpLabel.innerText = t('gui_hp');
+    
+    const raidAtkLabel = document.getElementById('raid-atk-label');
+    if (raidAtkLabel) raidAtkLabel.innerText = t('gui_atk');
+
+    const raidArmLabel = document.getElementById('raid-arm-label');
+    if (raidArmLabel) raidArmLabel.innerText = t('gui_arm');
     
     const pocketsLabel = document.querySelector('#pockets-grid').previousElementSibling;
     if (pocketsLabel) pocketsLabel.innerText = t('gui_pockets');

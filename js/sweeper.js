@@ -59,25 +59,13 @@ function initGrid() {
     for (let x = 0; x < MAP_W; x++) {
         grid[x] = [];
         for (let y = 0; y < MAP_H; y++) {
-            let tx = 0;
-            let ty = 0;
-            let tileType = 'grass';
-            
-            // 80% обычная трава (0,0), 20% вариации
-            if (Math.random() < 0.20) {
-                tx = Math.floor(Math.random() * 4);
-                ty = Math.floor(Math.random() * 4);
-                // 25% от вариаций (то есть 5% от всей карты) — цветочная поляна
-                if (Math.random() < 0.25) {
-                    tileType = 'flower';
-                }
-            }
-
             grid[x][y] = {
                 isRevealed: false, isFlagged: false,
                 isMine: false,
                 isEnemy: false,
                 enemyType: null, enemyHp: 0, lvl: 1,
+                corpseType: null,
+                afterboomIndex: null,
                 isChest: false,
                 chestLvl: 1,
                 isTree: false,
@@ -88,10 +76,82 @@ function initGrid() {
                 treeFrame: 0,
                 isHurt: false,
                 threatCount: 0,
-                tileX: tx,
-                tileY: ty,
-                tileType: tileType
+                tileX: 0,
+                tileY: 0,
+                tileType: 'grass'
             };
+        }
+    }
+
+    // Генерируем органические пятна (поляны) цветов и вариаций травы
+    let patchCount = Math.floor((MAP_W * MAP_H) / 60);
+    for (let i = 0; i < patchCount; i++) {
+        let cx = Math.floor(Math.random() * MAP_W);
+        let cy = Math.floor(Math.random() * MAP_H);
+        let radius = 2 + Math.floor(Math.random() * 5); // радиус от 2 до 6 клеток
+        
+        let isFlowerPatch = Math.random() < 0.35; // 35% шанс поляны цветов, 65% - густой травы
+        
+        // Выбираем конкретную вариацию текстуры для этого пятна
+        let patchTileX = Math.floor(Math.random() * 4);
+        let patchTileY = Math.floor(Math.random() * 4);
+
+        for (let dx = -radius; dx <= radius; dx++) {
+            for (let dy = -radius; dy <= radius; dy++) {
+                let tx = cx + dx;
+                let ty = cy + dy;
+                if (tx >= 0 && tx < MAP_W && ty >= 0 && ty < MAP_H) {
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    let spawnChance = 1 - (dist / radius);
+                    if (Math.random() < spawnChance) {
+                        if (isFlowerPatch) {
+                            grid[tx][ty].tileType = 'flower';
+                            grid[tx][ty].tileX = patchTileX;
+                            grid[tx][ty].tileY = patchTileY;
+                        } else {
+                            grid[tx][ty].tileType = 'grass';
+                            grid[tx][ty].tileX = patchTileX;
+                            grid[tx][ty].tileY = patchTileY;
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- ПРЕДПОДГОТОВКА СТАТИЧЕСКОГО ФОНА (ОПТИМИЗАЦИЯ) ---
+window.bgCanvas = null;
+window.bgCtx = null;
+
+function prerenderBackground() {
+    if (!window.bgCanvas) {
+        window.bgCanvas = document.createElement('canvas');
+    }
+    window.bgCanvas.width = MAP_W * CELL_SIZE;
+    window.bgCanvas.height = MAP_H * CELL_SIZE;
+    window.bgCtx = window.bgCanvas.getContext('2d');
+    window.bgCtx.imageSmoothingEnabled = false;
+
+    for (let x = 0; x < MAP_W; x++) {
+        for (let y = 0; y < MAP_H; y++) {
+            let cell = grid[x][y];
+            let px = x * CELL_SIZE;
+            let py = y * CELL_SIZE;
+
+            let groundImg = images.grass_tile;
+            if (cell.tileType === 'flower' && images.flowers_ground.complete) {
+                groundImg = images.flowers_ground;
+            } else if (cell.tileType === 'stone' && images.stone_ground.complete) {
+                groundImg = images.stone_ground;
+            }
+
+            if (groundImg && groundImg.complete) {
+                window.bgCtx.drawImage(groundImg, cell.tileX * 32, cell.tileY * 32, 32, 32, px, py, CELL_SIZE, CELL_SIZE);
+            } else {
+                window.bgCtx.fillStyle = cell.tileType === 'stone' ? '#78909c' : '#2e7d32';
+                window.bgCtx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
+            }
         }
     }
 }
@@ -104,7 +164,7 @@ function generateLevel(sX, sY) {
 
     // 1. Спавн деревьев
     let forestCenters = [];
-    let forestCount = Math.floor((MAP_W * MAP_H) / 200) + Math.floor(Math.random() * 10);
+    let forestCount = Math.floor((MAP_W * MAP_H) / 100) + Math.floor(Math.random() * 8);
     for (let i = 0; i < forestCount; i++) {
         let rx = Math.floor(Math.random() * MAP_W);
         let ry = Math.floor(Math.random() * MAP_H);
@@ -121,7 +181,7 @@ function generateLevel(sX, sY) {
                 if (tx < 0 || tx >= MAP_W || ty < 0 || ty >= MAP_H) continue;
                 if (Math.abs(tx - sX) <= SAFE_RADIUS && Math.abs(ty - sY) <= SAFE_RADIUS) continue;
                 let d = Math.abs(dx) + Math.abs(dy);
-                let chance = d === 1 ? 0.7 : d === 2 ? 0.4 : d <= 4 ? 0.15 : 0;
+                let chance = d === 1 ? 0.8 : d === 2 ? 0.5 : d <= 4 ? 0.2 : 0;
                 if (Math.random() < chance && !grid[tx][ty].isTree && !grid[tx][ty].isBush && !grid[tx][ty].isVegetation && !grid[tx][ty].isRock) {
                     if (Math.random() < 0.25) {
                         grid[tx][ty].isBush = true;
@@ -136,7 +196,7 @@ function generateLevel(sX, sY) {
 
     // 1.5. Спавн вегетации и камней (полянами)
     let vegCenters = [];
-    let vegCount = Math.floor((MAP_W * MAP_H) / 66) + Math.floor(Math.random() * 30);
+    let vegCount = Math.floor((MAP_W * MAP_H) / 40) + Math.floor(Math.random() * 40);
     for (let i = 0; i < vegCount; i++) {
         let rx = Math.floor(Math.random() * MAP_W);
         let ry = Math.floor(Math.random() * MAP_H);
@@ -177,13 +237,26 @@ function generateLevel(sX, sY) {
         for (let y = 0; y < MAP_H; y++) {
             if (Math.abs(x - sX) <= SAFE_RADIUS && Math.abs(y - sY) <= SAFE_RADIUS) continue;
             if (grid[x][y].isTree || grid[x][y].isBush || grid[x][y].isVegetation || grid[x][y].isRock) continue;
-            if (Math.random() < 0.09) {
-                if (Math.random() < 0.25) {
+            if (Math.random() < 0.15) {
+                if (Math.random() < 0.15) {
                     grid[x][y].isRock = true;
                     grid[x][y].decorFrame = Math.floor(Math.random() * 4);
                 } else {
                     grid[x][y].isVegetation = true;
                     grid[x][y].decorFrame = Math.floor(Math.random() * 4);
+                }
+            }
+        }
+    }
+
+    // 1.7 Дополнительный густой спавн травы под всеми деревьями и кустами (для лесов)
+    for (let x = 0; x < MAP_W; x++) {
+        for (let y = 0; y < MAP_H; y++) {
+            let cell = grid[x][y];
+            if (cell.isTree || cell.isBush) {
+                if (Math.random() < 0.85) {
+                    cell.isVegetation = true;
+                    cell.decorFrame = Math.floor(Math.random() * 4);
                 }
             }
         }
@@ -307,8 +380,33 @@ function generateLevel(sX, sY) {
         makeStonePath(sX, sY, dest.x, dest.y);
     });
 
+    // Гарантируем Safe Big Start:
+    // Никаких мин в пределах 5х5 вокруг клика (чтобы все клетки 3х3 вокруг клика имели threatCount === 0)
+    // Никаких врагов, сундуков, деревьев, кустов и прочих препятствий в пределах 3х3 вокруг клика
+    for (let x = 0; x < MAP_W; x++) {
+        for (let y = 0; y < MAP_H; y++) {
+            let dx = Math.abs(x - sX);
+            let dy = Math.abs(y - sY);
+            if (dx <= 2 && dy <= 2) {
+                grid[x][y].isMine = false;
+            }
+            if (dx <= 1 && dy <= 1) {
+                grid[x][y].isEnemy = false;
+                grid[x][y].enemyHp = 0;
+                grid[x][y].isChest = false;
+                grid[x][y].isTree = false;
+                grid[x][y].isBush = false;
+                grid[x][y].isRock = false;
+                grid[x][y].isVegetation = false;
+            }
+        }
+    }
+
     // 5. Подсчёт угроз
     recalcAllThreats();
+
+    // Предварительная отрисовка статического фона для кэширования
+    prerenderBackground();
 }
 
 function recalcAllThreats() {
@@ -359,9 +457,9 @@ function isCellBlockedByEnemy(cx, cy) {
 
 // --- КАМЕРА ---
 // На мобильных уменьшаем внутренний вьюпорт канваса, чтобы клетки были крупнее
-const IS_MOBILE = (window.innerWidth <= 640);
-let VIEWPORT_W = IS_MOBILE ? 320 : 640;
-let VIEWPORT_H = IS_MOBILE ? 320 : 640;
+let isMobile = (window.innerWidth <= 640);
+let VIEWPORT_W = isMobile ? 320 : 640;
+let VIEWPORT_H = isMobile ? 320 : 640;
 let cameraX = 0;
 let cameraY = 0;
 
@@ -386,6 +484,128 @@ function centerCameraOnPlayer() {
     cameraY = sY * CELL_SIZE - Math.floor(VIEWPORT_H / 2 / CELL_SIZE) * CELL_SIZE;
     clampCamera();
     drawBoard();
+}
+
+// --- СИСТЕМА ОБЛАКОВ ---
+let clouds = [];
+window.cloudTextures = [];
+window.cloudTexturesGenerated = false;
+
+function generateCloudTextures() {
+    if (window.cloudTexturesGenerated) return;
+    if (!images.effect_smoke2 || !images.effect_smoke2.complete) return;
+
+    window.cloudTextures = [];
+    const frameW = 64;
+    const frameH = 64;
+
+    for (let i = 0; i < 4; i++) {
+        let canvasTemp = document.createElement('canvas');
+        canvasTemp.width = frameW;
+        canvasTemp.height = frameH;
+        let ctxTemp = canvasTemp.getContext('2d');
+
+        // Рисуем i-й фрейм из спрайта дыма
+        ctxTemp.drawImage(
+            images.effect_smoke2,
+            i * frameW, 0, frameW, frameH,
+            0, 0, frameW, frameH
+        );
+
+        // Перекрашиваем силуэт в черный цвет для создания тени
+        ctxTemp.globalCompositeOperation = 'source-in';
+        ctxTemp.fillStyle = '#000000';
+        ctxTemp.fillRect(0, 0, frameW, frameH);
+
+        window.cloudTextures.push(canvasTemp);
+    }
+    window.cloudTexturesGenerated = true;
+}
+
+function initClouds() {
+    clouds = [];
+    
+    // Пытаемся подготовить текстуры при инициализации облаков
+    generateCloudTextures();
+
+    let count = 8;
+    for (let i = 0; i < count; i++) {
+        clouds.push({
+            x: Math.random() * (MAP_W * CELL_SIZE),
+            y: Math.random() * (MAP_H * CELL_SIZE),
+            size: 300 + Math.random() * 300, // Делаем облака еще больше
+            opacity: 0.01 + Math.random() * 0.02, // Еще прозрачнее для максимальной мягкости
+            vx: 0.15 + Math.random() * 0.25, 
+            vy: 0.08 + Math.random() * 0.12,
+            textureIndex: Math.floor(Math.random() * 4)
+        });
+    }
+}
+
+function updateClouds(dt) {
+    let mapW = MAP_W * CELL_SIZE;
+    let mapH = MAP_H * CELL_SIZE;
+    clouds.forEach(cloud => {
+        cloud.x += cloud.vx * dt;
+        cloud.y += cloud.vy * dt;
+        
+        if (cloud.x > mapW + cloud.size) {
+            cloud.x = -cloud.size;
+            cloud.y = Math.random() * mapH;
+        }
+        if (cloud.y > mapH + cloud.size) {
+            cloud.y = -cloud.size;
+            cloud.x = Math.random() * mapW;
+        }
+    });
+}
+
+function drawCloudShadows() {
+    // Если картинка не успела загрузиться при старте, пробуем сгенерировать текстуры сейчас
+    if (!window.cloudTexturesGenerated) {
+        generateCloudTextures();
+    }
+
+    clouds.forEach(cloud => {
+        let screenX = cloud.x - cameraX;
+        let screenY = cloud.y - cameraY;
+
+        if (screenX + cloud.size >= 0 && screenX - cloud.size <= VIEWPORT_W &&
+            screenY + cloud.size >= 0 && screenY - cloud.size <= VIEWPORT_H) {
+            
+            ctx.save();
+            ctx.globalAlpha = cloud.opacity;
+            // Включаем сглаживание для мягкого размытия тени облака
+            ctx.imageSmoothingEnabled = true;
+
+            let texture = window.cloudTextures[cloud.textureIndex];
+            if (texture) {
+                ctx.drawImage(
+                    texture,
+                    screenX - cloud.size / 2,
+                    screenY - cloud.size / 2,
+                    cloud.size,
+                    cloud.size
+                );
+            } else {
+                // Запасной вариант: градиент
+                let grad = ctx.createRadialGradient(
+                    screenX, screenY, 0,
+                    screenX, screenY, cloud.size / 2
+                );
+                grad.addColorStop(0, 'rgba(0,0,0,0.4)');
+                grad.addColorStop(1, 'rgba(0,0,0,0)');
+                ctx.fillStyle = grad;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, cloud.size / 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Возвращаем сглаживание обратно для пиксель-арта игры
+            ctx.imageSmoothingEnabled = false;
+            ctx.restore();
+        }
+    });
 }
 
 // --- АНИМАЦИОННЫЕ ЭФФЕКТЫ ---
@@ -471,16 +691,6 @@ function triggerMineExplosions(cx, cy) {
 }
 
 function processNewlyRevealedCells() {
-    if (window.newlyRevealedCells && window.newlyRevealedCells.length > 3) {
-        window.newlyRevealedCells.forEach(cellPos => {
-            // Вероятность 40% для каждой открытой клетки проиграть анимацию дыма
-            if (Math.random() < 0.4) {
-                let smokeType = Math.random() < 0.5 ? 'smoke' : 'smoke2';
-                let randomDelay = Math.random() * 300; // задержка для естественности волны дыма
-                addEffect(smokeType, cellPos.x, cellPos.y, randomDelay);
-            }
-        });
-    }
     window.newlyRevealedCells = [];
 }
 
@@ -543,11 +753,11 @@ ctx.imageSmoothingEnabled = false;
 
 // Обработка смены ориентации / ресайза на мобильных
 window.addEventListener('resize', () => {
-    const wasMobile = IS_MOBILE;
     const nowMobile = (window.innerWidth <= 640);
-    if (wasMobile !== nowMobile) {
-        VIEWPORT_W = nowMobile ? 320 : 640;
-        VIEWPORT_H = nowMobile ? 320 : 640;
+    if (isMobile !== nowMobile) {
+        isMobile = nowMobile;
+        VIEWPORT_W = isMobile ? 320 : 640;
+        VIEWPORT_H = isMobile ? 320 : 640;
         canvas.width = VIEWPORT_W;
         canvas.height = VIEWPORT_H;
         ctx.imageSmoothingEnabled = false;
@@ -561,12 +771,33 @@ window.addEventListener('resize', () => {
 function drawBoard() {
     if (gameState !== 'RAID') return;
 
+    // Обновление позиций облаков
+    let now = Date.now();
+    let dt = 1;
+    if (window.lastCloudUpdate) {
+        dt = (now - window.lastCloudUpdate) / 16;
+    }
+    window.lastCloudUpdate = now;
+    if (typeof updateClouds === 'function') {
+        updateClouds(dt);
+    }
+
     // Сначала очищаем весь холст
     ctx.clearRect(0, 0, VIEWPORT_W, VIEWPORT_H);
 
-    // Закрашиваем темный фон под всем вьюпортом
-    ctx.fillStyle = '#263238';
-    ctx.fillRect(0, 0, VIEWPORT_W, VIEWPORT_H);
+    // Рисуем предрассчитанный статический фон земли из кеша
+    if (window.bgCanvas) {
+        ctx.drawImage(window.bgCanvas, cameraX, cameraY, VIEWPORT_W, VIEWPORT_H, 0, 0, VIEWPORT_W, VIEWPORT_H);
+    } else {
+        // Фоновый залив, если кеш не готов
+        ctx.fillStyle = '#263238';
+        ctx.fillRect(0, 0, VIEWPORT_W, VIEWPORT_H);
+    }
+
+    // Рисуем тени облаков поверх чистой земли, под остальными плитками и объектами
+    if (typeof drawCloudShadows === 'function') {
+        drawCloudShadows();
+    }
 
     let startX = Math.floor(cameraX / CELL_SIZE);
     let startY = Math.floor(cameraY / CELL_SIZE);
@@ -581,20 +812,7 @@ function drawBoard() {
             let py = Math.floor(y * CELL_SIZE - cameraY);
 
             if (cell.isRevealed) {
-                // 1. Базовый тайл земли
-                let groundImg = images.grass_tile;
-                if (cell.tileType === 'flower' && images.flowers_ground.complete) {
-                    groundImg = images.flowers_ground;
-                } else if (cell.tileType === 'stone' && images.stone_ground.complete) {
-                    groundImg = images.stone_ground;
-                }
-
-                if (groundImg.complete) {
-                    ctx.drawImage(groundImg, cell.tileX * 32, cell.tileY * 32, 32, 32, px, py, CELL_SIZE, CELL_SIZE);
-                } else {
-                    ctx.fillStyle = cell.tileType === 'stone' ? '#78909c' : '#2e7d32';
-                    ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
-                }
+                // Земля уже отрисована из кеша bgCanvas
 
                 // --- ТЕНЬ ОТ НЕРАЗВЕДАННЫХ КЛЕТОК ---
                 // Рисуем очень легкую полупрозрачную тень (4px) на границе с туманом войны
@@ -665,23 +883,60 @@ function drawBoard() {
                     let uniqueSpeedModifier = 0.8 + (Math.abs(Math.sin(x * 12.3 + y * 7.7)) * 0.4);
                     let time = Date.now() * 0.003 * uniqueSpeedModifier * 0.7; // 30% slower
                     let wave = Math.sin(time + (x * 0.5 + y * 0.3)) * 0.018 + rustleAngle; // 1.5x stronger amplitude
-                    let vegSize = 14;
 
                     if (images.vegetation.complete) {
-                        ctx.save();
-                        ctx.translate(px + CELL_SIZE / 2, py + 22);
-                        ctx.rotate(wave);
-                        ctx.drawImage(images.vegetation, cell.decorFrame * 16, 0, 16, 16, -vegSize / 2, -vegSize, vegSize, vegSize);
-                        ctx.restore();
+                        // Используем детерминированный генератор случайных чисел по координатам (x, y)
+                        let seed = x * 37 + y * 101;
+                        function rnd() {
+                            seed = (seed * 9301 + 49297) % 233280;
+                            return seed / 233280;
+                        }
+
+                        // Количество травинок в клетке (от 2 до 4 для густоты)
+                        let count = 2 + Math.floor(rnd() * 3);
+                        for (let i = 0; i < count; i++) {
+                            // Небольшое смещение для каждой травинки
+                            let offsetX = (rnd() - 0.5) * (CELL_SIZE * 0.5);
+                            let offsetY = (rnd() - 0.5) * (CELL_SIZE * 0.4);
+
+                            // Случайный размер травинки (от 9 до 17 пикселей)
+                            let size = 9 + rnd() * 8;
+
+                            // Случайный фрейм из спрайтлиста (от 0 до 3)
+                            let frame = Math.floor(rnd() * 4);
+
+                            ctx.save();
+                            // Точка вращения травинки (у основания)
+                            ctx.translate(px + CELL_SIZE / 2 + offsetX, py + 22 + offsetY);
+                            ctx.rotate(wave);
+                            ctx.drawImage(
+                                images.vegetation,
+                                frame * 16, 0, 16, 16,
+                                -size / 2, -size,
+                                size, size
+                            );
+                            ctx.restore();
+                        }
                     } else {
                         ctx.fillStyle = '#558b2f';
-                        ctx.fillRect(px + CELL_SIZE / 2 - vegSize / 2, py + 22 - vegSize, vegSize, vegSize);
+                        ctx.fillRect(px + 8, py + 8, 16, 16);
                     }
                 }
 
                 // 3. Деревья (с анимацией ЛЕГКОГО покачивания — сила уменьшена в 5 раз)
-                // 3. Деревья (с индивидуальной скоростью покачивания и фазовым сдвигом)
+                // 3. Деревья (с индивидуальной скоростью покачивания, фазовым сдвигом и органическим смещением)
                 if (cell.isTree) {
+                    // Используем детерминированный генератор случайных чисел для смещения дерева
+                    let seed = x * 157 + y * 223;
+                    function treeRnd() {
+                        seed = (seed * 9301 + 49297) % 233280;
+                        return seed / 233280;
+                    }
+
+                    // Смещение дерева (по горизонтали от -6 до +6 пикселей, по вертикали от -4 до +4 пикселей)
+                    let treeOffsetX = (treeRnd() - 0.5) * 12;
+                    let treeOffsetY = (treeRnd() - 0.5) * 8;
+
                     // Генерируем псевдорандомный, но фиксированный для этой клетки множитель скорости (от 0.8 до 1.2)
                     let uniqueSpeedModifier = 0.8 + (Math.abs(Math.sin(x * 12.3 + y * 7.7)) * 0.4);
 
@@ -693,8 +948,8 @@ function drawBoard() {
 
                     if (images.tree.complete) {
                         ctx.save();
-                        // Сдвигаем матрицу к основанию ствола дерева, чтобы оно качалось от корня
-                        ctx.translate(px + CELL_SIZE / 2, py + CELL_SIZE);
+                        // Сдвигаем матрицу к основанию ствола дерева с учетом его смещения
+                        ctx.translate(px + CELL_SIZE / 2 + treeOffsetX, py + CELL_SIZE + treeOffsetY);
                         ctx.rotate(wave);
 
                         // Рисуем дерево со смещением обратно (так как точка привязки теперь по центру снизу)
@@ -702,13 +957,50 @@ function drawBoard() {
                         ctx.restore();
                     } else {
                         ctx.fillStyle = '#1b5e20';
-                        ctx.fillRect(px + 8, py + 4, 16, 24);
+                        ctx.fillRect(px + 8 + treeOffsetX, py + 4 + treeOffsetY, 16, 24);
+                    }
+                }
+
+                // --- АФТЕРБУМЫ И ТРУПЫ (РИСУЮТСЯ ПОД ЦИФРАМИ) ---
+                if (cell.afterboomIndex !== undefined && cell.afterboomIndex !== null) {
+                    ctx.save();
+                    ctx.globalAlpha = 0.6;
+                    if (images.afterboom && images.afterboom.complete) {
+                        let frameW = images.afterboom.width / 3;
+                        let frameH = images.afterboom.height;
+                        ctx.drawImage(
+                            images.afterboom,
+                            cell.afterboomIndex * frameW, 0, frameW, frameH,
+                            px, py, CELL_SIZE, CELL_SIZE
+                        );
+                    } else {
+                        ctx.fillStyle = 'rgba(40, 40, 40, 0.6)';
+                        ctx.beginPath();
+                        ctx.arc(px + CELL_SIZE/2, py + CELL_SIZE/2, CELL_SIZE/3, 0, Math.PI*2);
+                        ctx.fill();
+                    }
+                    ctx.restore();
+                }
+
+                if (cell.corpseType) {
+                    let corpseImg = cell.corpseType === 'orc' ? images.orc_death : images.soldier_death;
+                    if (corpseImg && corpseImg.complete) {
+                        ctx.save();
+                        ctx.globalAlpha = 0.75;
+                        ctx.drawImage(corpseImg, px, py, CELL_SIZE, CELL_SIZE);
+                        ctx.restore();
+                    } else {
+                        ctx.save();
+                        ctx.globalAlpha = 0.75;
+                        ctx.fillStyle = cell.corpseType === 'orc' ? '#990000' : '#000099';
+                        ctx.fillRect(px + 6, py + 12, 20, 10);
+                        ctx.restore();
                     }
                 }
 
                 // 4. Отрисовка цифры угрозы (всегда рисуется поверх декора и деревьев)
                 if (hasNumber) {
-                    drawThreatNumber(px, py, cell.threatCount);
+                    drawThreatNumber(px, py, cell.threatCount, x, y);
                 }
 
                 // 5. Сундуки
@@ -828,18 +1120,84 @@ function drawBoard() {
     }
     
     // Отрисовка активных анимационных эффектов поверх всего
+    // Отрисовка подсветки соседей при наведении (Hover Highlight)
+    if (window.hoveredCellX !== undefined && window.hoveredCellX !== null && window.hoveredCellX >= 0 && window.hoveredCellX < MAP_W &&
+        window.hoveredCellY !== undefined && window.hoveredCellY !== null && window.hoveredCellY >= 0 && window.hoveredCellY < MAP_H) {
+        let hoveredCell = grid[window.hoveredCellX][window.hoveredCellY];
+        if (hoveredCell.isRevealed) {
+            ctx.save();
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.lineWidth = 1.5;
+            for (let dx = -1; dx <= 1; dx++) {
+                for (let dy = -1; dy <= 1; dy++) {
+                    if (dx === 0 && dy === 0) continue;
+                    let nx = window.hoveredCellX + dx;
+                    let ny = window.hoveredCellY + dy;
+                    if (nx >= 0 && nx < MAP_W && ny >= 0 && ny < MAP_H) {
+                        let px = nx * CELL_SIZE - cameraX;
+                        let py = ny * CELL_SIZE - cameraY;
+                        ctx.strokeRect(px + 1, py + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+                    }
+                }
+            }
+            ctx.restore();
+        }
+    }
+
+    // Отрисовка временной подсветки закрытых соседей при неудавшемся аккорде (Smart click feedback)
+    if (window.tempChordingHighlight && (Date.now() - window.tempChordingHighlight.startTime < window.tempChordingHighlight.duration)) {
+        let cx = window.tempChordingHighlight.cx;
+        let cy = window.tempChordingHighlight.cy;
+        ctx.save();
+        ctx.strokeStyle = 'rgba(239, 83, 80, 0.6)'; // Красноватая полупрозрачная рамка для закрытых соседей
+        ctx.lineWidth = 2;
+        for (let dx = -1; dx <= 1; dx++) {
+            for (let dy = -1; dy <= 1; dy++) {
+                if (dx === 0 && dy === 0) continue;
+                let nx = cx + dx;
+                let ny = cy + dy;
+                if (nx >= 0 && nx < MAP_W && ny >= 0 && ny < MAP_H) {
+                    let adj = grid[nx][ny];
+                    if (!adj.isRevealed) {
+                        let px = nx * CELL_SIZE - cameraX;
+                        let py = ny * CELL_SIZE - cameraY;
+                        ctx.strokeRect(px + 1, py + 1, CELL_SIZE - 2, CELL_SIZE - 2);
+                    }
+                }
+            }
+        }
+        ctx.restore();
+    }
+
+    // Отрисовка активных анимационных эффектов поверх всего
     drawEffects();
 }
 
 // Вспомогательная функция отрисовки кружка и цифры
-function drawThreatNumber(px, py, threatCount) {
+function drawThreatNumber(px, py, threatCount, cx, cy) {
     ctx.fillStyle = 'rgba(0, 0, 0, 0.6)'; // Сделаем подложку чуть темнее для лучшей читаемости поверх дерева
     ctx.beginPath();
     ctx.arc(px + CELL_SIZE / 2, py + CELL_SIZE / 2, 10, 0, Math.PI * 2);
     ctx.fill();
 
+    let isCompleted = false;
+    if (cx !== undefined && cy !== undefined) {
+        let flagsCount = 0;
+        for (let ax = Math.max(0, cx - 1); ax <= Math.min(MAP_W - 1, cx + 1); ax++) {
+            for (let ay = Math.max(0, cy - 1); ay <= Math.min(MAP_H - 1, cy + 1); ay++) {
+                if (ax === cx && ay === cy) continue;
+                if (grid[ax][ay].isFlagged) {
+                    flagsCount++;
+                }
+            }
+        }
+        if (flagsCount === threatCount) {
+            isCompleted = true;
+        }
+    }
+
     let colors = ['#78909c', '#1565c0', '#2e7d32', '#c62828', '#6a1b9a', '#ef6c00', '#00838f', '#37474f', '#000000'];
-    ctx.fillStyle = colors[Math.min(threatCount, colors.length - 1)];
+    ctx.fillStyle = isCompleted ? '#777777' : colors[Math.min(threatCount, colors.length - 1)];
     ctx.font = 'bold 16px monospace';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -852,8 +1210,19 @@ function revealCell(x, y) {
     if (cell.isRevealed || cell.isFlagged) return;
 
     cell.isRevealed = true;
-    if (window.newlyRevealedCells) {
-        window.newlyRevealedCells.push({ x: x, y: y });
+    
+    // Регенерация ХП за успешно открытый тайл (если не мина)
+    if (!cell.isMine) {
+        player.hp = Math.min(player.maxHp, player.hp + 0.1);
+        if (typeof updateUi === 'function') {
+            updateUi();
+        }
+    }
+    
+    // Эффект дыма на первой открытой клетке
+    if (Math.random() < 0.4) {
+        let smokeType = Math.random() < 0.5 ? 'smoke' : 'smoke2';
+        addEffect(smokeType, x, y);
     }
 
     if (cell.isEnemy) return;
@@ -861,10 +1230,55 @@ function revealCell(x, y) {
     if (cell.threatCount === 0 && !cell.isMine && !cell.isChest) {
         for (let ax = Math.max(0, x - 1); ax <= Math.min(MAP_W - 1, x + 1); ax++) {
             for (let ay = Math.max(0, y - 1); ay <= Math.min(MAP_H - 1, y + 1); ay++) {
-                revealCell(ax, ay);
+                if (ax === x && ay === y) continue;
+                revealCellDelayed(ax, ay, 40);
             }
         }
     }
+}
+
+function revealCellDelayed(x, y, delayMs) {
+    if (x < 0 || x >= MAP_W || y < 0 || y >= MAP_H) return;
+    let cell = grid[x][y];
+    if (cell.isRevealed || cell.isFlagged) return;
+    if (cell.isPendingReveal) return;
+
+    cell.isPendingReveal = true;
+
+    setTimeout(() => {
+        if (gameState !== 'RAID') return;
+        cell.isPendingReveal = false;
+        if (cell.isRevealed || cell.isFlagged) return;
+
+        cell.isRevealed = true;
+
+        // Регенерация ХП за успешно открытый тайл (если не мина)
+        if (!cell.isMine) {
+            player.hp = Math.min(player.maxHp, player.hp + 0.1);
+            if (typeof updateUi === 'function') {
+                updateUi();
+            }
+        }
+
+        if (Math.random() < 0.4) {
+            let smokeType = Math.random() < 0.5 ? 'smoke' : 'smoke2';
+            addEffect(smokeType, x, y);
+        }
+
+        drawBoard();
+        checkVictoryCondition();
+
+        if (cell.isEnemy) return;
+
+        if (cell.threatCount === 0 && !cell.isMine && !cell.isChest) {
+            for (let ax = Math.max(0, x - 1); ax <= Math.min(MAP_W - 1, x + 1); ax++) {
+                for (let ay = Math.max(0, y - 1); ay <= Math.min(MAP_H - 1, y + 1); ay++) {
+                    if (ax === x && ay === y) continue;
+                    revealCellDelayed(ax, ay, 40);
+                }
+            }
+        }
+    }, delayMs);
 }
 
 // Отслеживание движения мыши для динамической прозрачности крон деревьев
@@ -922,6 +1336,7 @@ function handleBoardClick(cx, cy, isRightClick) {
                     window.raidStats.enemiesKilled++;
                     window.raidStats.shardsLooted += cell.lvl * 2;
                 }
+                cell.corpseType = cell.enemyType;
                 cell.isEnemy = false;
                 recalcThreatsAround(cx, cy);
                 checkVictoryCondition();
@@ -949,6 +1364,11 @@ function handleBoardClick(cx, cy, isRightClick) {
     if (isRightClick) {
         if (!cell.isRevealed) {
             cell.isFlagged = !cell.isFlagged;
+            if (navigator.vibrate) {
+                try {
+                    navigator.vibrate(40);
+                } catch (e) {}
+            }
             playSound('button');
             drawBoard();
         }
@@ -993,6 +1413,7 @@ function handleBoardClick(cx, cy, isRightClick) {
                             if (adj.isMine) {
                                 adj.isRevealed = true;
                                 adj.isMine = false;
+                                adj.afterboomIndex = Math.floor(Math.random() * 3);
                                 hitMine = true;
                                 if (window.raidStats) window.raidStats.minesTriggered++;
                                 playSound('boom' + (Math.floor(Math.random() * 2) + 1));
@@ -1027,6 +1448,20 @@ function handleBoardClick(cx, cy, isRightClick) {
                     updateUi();
                     checkVictoryCondition();
                 }
+            } else {
+                // Если флагов не хватает — подсвечиваем закрытые соседние клетки на 300мс
+                window.tempChordingHighlight = {
+                    cx: cx,
+                    cy: cy,
+                    startTime: Date.now(),
+                    duration: 300
+                };
+                drawBoard();
+                if (window.tempChordingTimer) clearTimeout(window.tempChordingTimer);
+                window.tempChordingTimer = setTimeout(() => {
+                    window.tempChordingHighlight = null;
+                    drawBoard();
+                }, 300);
             }
         }
         return;
@@ -1040,6 +1475,7 @@ function handleBoardClick(cx, cy, isRightClick) {
     if (cell.isMine) {
          cell.isRevealed = true;
          cell.isMine = false;
+         cell.afterboomIndex = Math.floor(Math.random() * 3);
          if (window.raidStats) window.raidStats.minesTriggered++;
          playSound('boom' + (Math.floor(Math.random() * 2) + 1));
          triggerMineExplosions(cx, cy);
@@ -1089,6 +1525,8 @@ canvas.addEventListener('mousedown', (e) => {
 // Добавляем поддержку Touch-событий (Tap и Long Press) для мобильных устройств
 let touchStartX = 0;
 let touchStartY = 0;
+let touchStartCameraX = 0;
+let touchStartCameraY = 0;
 let touchTimer = null;
 let isLongPress = false;
 let touchMoved = false;
@@ -1101,6 +1539,8 @@ canvas.addEventListener('touchstart', (e) => {
     const touch = e.touches[0];
     touchStartX = touch.clientX;
     touchStartY = touch.clientY;
+    touchStartCameraX = cameraX;
+    touchStartCameraY = cameraY;
     isLongPress = false;
     touchMoved = false;
     
@@ -1114,10 +1554,7 @@ canvas.addEventListener('touchstart', (e) => {
         let cx = Math.floor(((touch.clientX - rect.left) * scaleX + cameraX) / CELL_SIZE);
         let cy = Math.floor(((touch.clientY - rect.top) * scaleY + cameraY) / CELL_SIZE);
         handleBoardClick(cx, cy, true); // Долгий тап ставит флаг
-        if (navigator.vibrate) {
-            navigator.vibrate(50); // Виброотклик
-        }
-    }, 500);
+    }, 280); // Удержание пальца на 280мс
 }, { passive: true });
 
 canvas.addEventListener('touchmove', (e) => {
@@ -1125,13 +1562,22 @@ canvas.addEventListener('touchmove', (e) => {
     if (e.touches.length !== 1) return;
     
     const touch = e.touches[0];
-    const dist = Math.hypot(touch.clientX - touchStartX, touch.clientY - touchStartY);
+    const dx = touch.clientX - touchStartX;
+    const dy = touch.clientY - touchStartY;
+    const dist = Math.hypot(dx, dy);
+    
     if (dist > 15) {
         touchMoved = true;
         if (touchTimer) {
             clearTimeout(touchTimer);
             touchTimer = null;
         }
+        
+        // Сдвиг камеры при скролле (панорамирование пальцем)
+        cameraX = touchStartCameraX - dx;
+        cameraY = touchStartCameraY - dy;
+        clampCamera();
+        drawBoard();
     }
 }, { passive: true });
 
@@ -1156,7 +1602,7 @@ canvas.addEventListener('touchend', (e) => {
         const touch = e.changedTouches[0] || { clientX: touchStartX, clientY: touchStartY };
         let cx = Math.floor(((touch.clientX - rect.left) * scaleX + cameraX) / CELL_SIZE);
         let cy = Math.floor(((touch.clientY - rect.top) * scaleY + cameraY) / CELL_SIZE);
-        handleBoardClick(cx, cy, false); // Обычный тап открывает клетку
+        handleBoardClick(cx, cy, false); // Обычный быстрый тап открывает клетку
     }
 }, { passive: false });
 
@@ -1193,6 +1639,7 @@ function battleEnemy(cell, cx, cy) {
             logEvent(t('chest_dropped', { lvl: cell.lvl }), 'log-loot');
         }
 
+        cell.corpseType = cell.enemyType;
         cell.isEnemy = false;
         recalcThreatsAround(cx, cy);
         checkVictoryCondition();
