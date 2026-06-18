@@ -180,13 +180,28 @@ canvas {
     position: relative;
 }
 
+#hp-bar-catchup {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: #e53935; /* Красный цвет для угасающего ХП */
+    transition: width 0.6s cubic-bezier(0.25, 1, 0.5, 1);
+    z-index: 1;
+}
+
 #hp-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
     width: 100%;
     height: 100%;
     background: url('hpbar.png') no-repeat left center;
     background-size: 338px 100%;
     image-rendering: pixelated;
-    transition: width 0.2s;
+    transition: width 0.15s ease-out;
+    z-index: 2;
 }
 
 #hp-text {
@@ -199,6 +214,7 @@ canvas {
     font-size: 7px;
     color: #fff;
     font-family: 'Press Start 2P', monospace;
+    z-index: 3;
 }
 
 /* ИСПРАВЛЕНО: Расширено до 196x260px для идеального рендеринга сетки 6х8 с учетом рамок */
@@ -276,11 +292,20 @@ canvas {
         cursor: not-allowed;
     }
 
-/* Кнопочная панель камеры */
-#camera-pad {
+/* Обёртка джойстика и кнопки "В Лагерь" */
+#camera-controls-wrapper {
     position: absolute;
     bottom: 20px;
     left: -140px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    z-index: 50;
+}
+
+/* Кнопка пада камеры */
+#camera-pad {
     width: 120px;
     height: 120px;
     display: grid;
@@ -291,7 +316,6 @@ canvas {
     border: 2px solid rgba(255, 255, 255, 0.2);
     border-radius: 8px;
     padding: 6px;
-    z-index: 50;
 }
 
 .cam-btn {
@@ -331,6 +355,82 @@ canvas {
         .cam-btn.cam-center:active {
             background: rgba(255, 204, 0, 0.6);
         }
+
+/* Кнопка "В Лагерь" */
+#btn-return-camp {
+    width: 120px;
+    padding: 8px 4px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 7px;
+    background: #1a2730;
+    color: #78aac0;
+    border: 2px solid #2e5060;
+    border-radius: 4px;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
+    line-height: 1.4;
+}
+
+#btn-return-camp:hover {
+    background: #1e3545;
+    color: #a8d8ea;
+    border-color: #4a8aaa;
+}
+
+/* Состояние "Область зачищена" — золотая подсветка */
+#btn-return-camp.btn-return-camp--cleared {
+    background: #2a1a00;
+    color: #ffcc00;
+    border-color: #ffaa00;
+    animation: btn-camp-pulse 1.5s ease-in-out infinite;
+}
+
+#btn-return-camp.btn-return-camp--cleared:hover {
+    background: #3d2800;
+    color: #ffe566;
+    border-color: #ffcc00;
+}
+
+@keyframes btn-camp-pulse {
+    0%, 100% { box-shadow: 0 0 6px rgba(255, 204, 0, 0.4); }
+    50% { box-shadow: 0 0 16px rgba(255, 204, 0, 0.9), 0 0 4px rgba(255, 204, 0, 0.6); }
+}
+
+/* Надпись "ОБЛАСТЬ ЗАЧИЩЕНА" поверх игрового поля */
+#area-cleared-overlay {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    color: #ffcc00;
+    text-shadow: 0 0 8px rgba(255, 204, 0, 0.8), 2px 2px #000;
+    background: rgba(0, 0, 0, 0.65);
+    padding: 6px 14px;
+    border: 2px solid #ffaa00;
+    border-radius: 4px;
+    z-index: 60;
+    pointer-events: none;
+    white-space: nowrap;
+    letter-spacing: 2px;
+    animation: overlay-appear 0.4s ease-out;
+}
+
+.area-cleared-visible {
+    animation: overlay-appear 0.4s ease-out, overlay-glow 2s ease-in-out 0.4s infinite !important;
+}
+
+@keyframes overlay-appear {
+    from { opacity: 0; transform: translateX(-50%) scale(0.8); }
+    to { opacity: 1; transform: translateX(-50%) scale(1); }
+}
+
+@keyframes overlay-glow {
+    0%, 100% { text-shadow: 0 0 8px rgba(255, 204, 0, 0.8), 2px 2px #000; }
+    50% { text-shadow: 0 0 20px rgba(255, 220, 0, 1), 0 0 40px rgba(255, 180, 0, 0.6), 2px 2px #000; }
+}
 
 /* Направления стрелочек */
 .cam-l {
@@ -603,11 +703,30 @@ canvas {
     }
 
     /* Джойстик камеры — выносим ПОД игровое поле, чтобы не мешал */
+    #camera-controls-wrapper {
+        position: relative;
+        left: auto;
+        bottom: auto;
+        flex-direction: row;       /* кнопка — слева, джойстик — справа */
+        align-items: center;
+        gap: 8px;
+        margin: 10px auto 0 auto;
+    }
+
+    #btn-return-camp {
+        width: 72px;               /* меньше на мобайле, чтобы не давило */
+        height: 120px;             /* по высоте джойстика */
+        font-size: 6px;
+        padding: 4px 2px;
+        writing-mode: vertical-rl; /* текст вертикально */
+        text-orientation: mixed;
+        letter-spacing: 1px;
+    }
+
     #camera-pad {
         position: relative;
         left: auto;
         bottom: auto;
-        margin: 10px auto 0 auto;
     }
 
     #board-wrapper {
@@ -641,4 +760,22 @@ html {
     body {
         zoom: 1.5;
     }
+}
+
+/* Стили для внутристрочных иконок интерфейса и логов */
+.ui-icon {
+    width: 1.65em;
+    height: 1.65em;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: pixelated;
+    vertical-align: -0.22em;
+    display: inline-block;
+    margin: 0 4px;
+}
+
+.stat-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
 }

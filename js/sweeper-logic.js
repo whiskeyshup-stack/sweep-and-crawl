@@ -123,6 +123,7 @@ window.bgCtx = null;
 
 function generateLevel(sX, sY) {
     let activeLevel = Math.min(3, player.selectedRaidLevel !== undefined ? player.selectedRaidLevel : (player.raidLevel || 0));
+    window.activeRaidLevel = activeLevel; // Сохраняем для формулы урона мин
 
     const maxDist = Math.sqrt(MAP_W * MAP_W + MAP_H * MAP_H) / 2;
     const SAFE_RADIUS = 5;
@@ -235,7 +236,7 @@ function generateLevel(sX, sY) {
             if (grid[x][y].isTree || grid[x][y].isBush || grid[x][y].isVegetation || grid[x][y].isRock || grid[x][y].isEnemy) continue;
 
             let t = (dist - SAFE_RADIUS) / (maxDist - SAFE_RADIUS);
-            let mineChance = 0.25 + t * 0.40;
+            let mineChance = 0.25 + t * 0.25; // Уменьшенная максимальная плотность мин
 
             // Модификатор усложнения количества мин (+10% за уровень)
             mineChance = mineChance * (1 + activeLevel * 0.10);
@@ -263,7 +264,7 @@ function generateLevel(sX, sY) {
                 grid[x][y].lvl = lvl;
 
                 grid[x][y].enemyType = (t > 0.4 && Math.random() < 0.6) ? 'orc' : 'soldier';
-                let hpBase = grid[x][y].enemyType === 'orc' ? 20 : 10;
+                let hpBase = grid[x][y].enemyType === 'orc' ? 15 : 10; // Орки ослаблены: 20→15
                 grid[x][y].enemyHp = lvl * hpBase;
             }
         }
@@ -370,8 +371,33 @@ function generateLevel(sX, sY) {
     // 5. Подсчёт угроз
     recalcAllThreats();
 
+    // 6. Предварительный расчёт цвета тумана (темнее к краям)
+    const maxFogDist = Math.sqrt(MAP_W * MAP_W + MAP_H * MAP_H) / 2;
+    for (let x = 0; x < MAP_W; x++) {
+        for (let y = 0; y < MAP_H; y++) {
+            let fd = Math.sqrt((x - sX) ** 2 + (y - sY) ** 2);
+            let ft = Math.min(1, fd / maxFogDist);
+            // Интерполяция: близко #37474f → далеко #141c20
+            let r = Math.round(55  - ft * 41);
+            let g = Math.round(71  - ft * 55);
+            let b = Math.round(79  - ft * 63);
+            grid[x][y].fogShade = `rgb(${r},${g},${b})`;
+        }
+    }
+
     // Предварительная отрисовка статического фона для кэширования
     prerenderBackground();
+
+    // Подсчет общего количества сгенерированных врагов
+    let enemyCount = 0;
+    for (let x = 0; x < MAP_W; x++) {
+        for (let y = 0; y < MAP_H; y++) {
+            if (grid[x][y].isEnemy) {
+                enemyCount++;
+            }
+        }
+    }
+    window.totalEnemies = enemyCount;
 }
 
 function recalcAllThreats() {
@@ -430,7 +456,7 @@ function revealCell(x, y) {
     
     // Регенерация ХП за успешно открытый тайл (если не мина)
     if (!cell.isMine) {
-        player.hp = Math.min(player.maxHp, player.hp + 0.1);
+        player.hp = Math.min(player.maxHp, player.hp + 0.5);
         if (typeof updateUi === 'function') {
             updateUi();
         }
@@ -471,7 +497,7 @@ function revealCellDelayed(x, y, delayMs) {
 
         // Регенерация ХП за успешно открытый тайл (если не мина)
         if (!cell.isMine) {
-            player.hp = Math.min(player.maxHp, player.hp + 0.1);
+            player.hp = Math.min(player.maxHp, player.hp + 0.5);
             if (typeof updateUi === 'function') {
                 updateUi();
             }
@@ -511,6 +537,9 @@ function handleBoardClick(cx, cy, isRightClick) {
             let dmg = 50 + rollResult.sum;
             cell.enemyHp -= dmg;
             addEffect('spell', cx, cy);
+            if (typeof addEffect === 'function') {
+                addEffect('floating_damage', cx, cy, 0, { amount: dmg, isPlayer: false });
+            }
             playSound('damagespell');
             logEvent(t('msg_scroll_dmg_log', { rolls: rollCount + 'd20 (' + rollResult.rolls.join('+') + ')', dmg: dmg, left: Math.max(0, cell.enemyHp) }), "log-loot");
             if (cell.enemyHp <= 0) {
@@ -604,8 +633,12 @@ function handleBoardClick(cx, cy, isRightClick) {
                                 playSound('boom' + (Math.floor(Math.random() * 2) + 1));
                                 triggerMineExplosions(ax, ay);
                                 if (!player.isInvulnerable) {
-                                    player.hp -= 90;
-                                    logEvent(t('mine_chord_hit'), "log-error");
+                                    let mineDmg = 30 + (window.activeRaidLevel || 0) * 15;
+                                    player.hp -= mineDmg;
+                                    if (typeof addEffect === 'function') {
+                                        addEffect('floating_damage', ax, ay, 0, { amount: mineDmg, isPlayer: true });
+                                    }
+                                    logEvent(t('mine_chord_hit', { dmg: mineDmg }), "log-error");
                                 } else {
                                     player.invulnCharges--;
                                     if (player.invulnCharges <= 0) {
@@ -674,8 +707,12 @@ function handleBoardClick(cx, cy, isRightClick) {
                 logEvent(t('scroll_ether_use', { charges: player.invulnCharges }), "log-sys");
             }
         } else {
-            player.hp -= 90;
-            logEvent(t('mine_direct_hit'), "log-error");
+            let mineDmg = 30 + (window.activeRaidLevel || 0) * 15;
+            player.hp -= mineDmg;
+            if (typeof addEffect === 'function') {
+                addEffect('floating_damage', cx, cy, 0, { amount: mineDmg, isPlayer: true });
+            }
+            logEvent(t('mine_direct_hit', { dmg: mineDmg }), "log-error");
             if (player.hp <= 0) die();
         }
         updateUi();
@@ -704,6 +741,9 @@ function battleEnemy(cell, cx, cy) {
     let rollResult = rollPlayerDamage();
     let dmg = rollResult.dmg;
     cell.enemyHp -= dmg;
+    if (typeof addEffect === 'function') {
+        addEffect('floating_damage', cx, cy, 0, { amount: dmg, isPlayer: false });
+    }
 
     cell.isHurt = true;
     logEvent(t('msg_sword_combat_log', { notation: rollResult.notation, rolls: rollResult.rolls.join('+'), mod: rollResult.mod, dmg: dmg, left: Math.max(0, cell.enemyHp) }));
@@ -733,6 +773,30 @@ function battleEnemy(cell, cx, cy) {
         cell.corpseType = cell.enemyType;
         cell.isEnemy = false;
         recalcThreatsAround(cx, cy);
+
+        // Дроп еды/зелья с врага
+        let dropR = Math.random();
+        let droppedConsumable = null;
+        if (dropR < 0.04) {
+            // ~4%: малое зелье
+            droppedConsumable = { id: 'drop_p_' + Date.now(), nameKey: 'name_potion_small', w: 1, h: 1, rarity: 'white', type: 'potion_small', img: 'heal_small' };
+        } else if (dropR < 0.14) {
+            // ~10%: еда
+            droppedConsumable = { id: 'drop_food_' + Date.now(), nameKey: 'name_food', w: 1, h: 1, rarity: 'white', type: 'food', img: 'f1' };
+        }
+        if (droppedConsumable) {
+            droppedConsumable.name = t(droppedConsumable.nameKey);
+            let pos = findFreeSpace(droppedConsumable.w, droppedConsumable.h, 'pockets');
+            if (pos) {
+                droppedConsumable.x = pos.x; droppedConsumable.y = pos.y; droppedConsumable.container = 'pockets';
+                items.push(droppedConsumable);
+                let dropKey = droppedConsumable.type === 'potion_small' ? 'msg_enemy_drop_potion' : 'msg_enemy_drop_food';
+                logEvent(t(dropKey, { name: t(droppedConsumable.nameKey) }), 'log-loot');
+                addEffect('floating_loot', cx, cy, 200, { lootType: 'item', item: droppedConsumable });
+                if (typeof renderInventory === 'function') renderInventory();
+            }
+        }
+
         checkVictoryCondition();
     } else {
         if (player.isInvulnerable) {
@@ -746,13 +810,16 @@ function battleEnemy(cell, cx, cy) {
         } else {
             let rollCount = cell.lvl;
             let diceSides = (cell.enemyType === 'orc') ? 20 : 12;
-            let mod = cell.lvl * (cell.enemyType === 'orc' ? 8 : 2);
+            let mod = cell.lvl * (cell.enemyType === 'orc' ? 4 : 2); // Орк: 8→4
             let enemyRoll = rollDice(rollCount, diceSides);
             let rawDmg = enemyRoll.sum + mod;
 
             let playerDefense = getEquipStat('armor') + player.armor;
             let finalDmg = Math.max(1, rawDmg - playerDefense);
             player.hp -= finalDmg;
+            if (typeof addEffect === 'function') {
+                addEffect('floating_damage', cx, cy, 0, { amount: finalDmg, isPlayer: true });
+            }
             logEvent(t('msg_enemy_attack_log', { rolls: rollCount + 'd' + diceSides + ' (' + enemyRoll.rolls.join('+') + ')', mod: mod, dmg: finalDmg, arm: playerDefense }), 'log-error');
             if (player.hp <= 0) die();
         }
@@ -762,25 +829,60 @@ function battleEnemy(cell, cx, cy) {
 
 function checkVictoryCondition() {
     let enemiesLeft = 0;
-    let safeUnrevealed = 0;
+    let totalSafe = 0;
+    let revealedSafe = 0;
 
     for (let x = 0; x < MAP_W; x++) {
         for (let y = 0; y < MAP_H; y++) {
             let cell = grid[x][y];
-
-            // Проверяем только живых врагов и неоткрытые безопасные клетки
             if (cell.isEnemy && cell.enemyHp > 0) enemiesLeft++;
-            if (!cell.isMine && !cell.isRevealed) safeUnrevealed++;
+            if (!cell.isMine) {
+                totalSafe++;
+                if (cell.isRevealed) revealedSafe++;
+            }
         }
     }
 
-    // Победа: убиты все враги и открыты все клетки без мин (сундуки игнорируются)
-    if (enemiesLeft === 0 && safeUnrevealed === 0) {
-        processRaidVictory();
+    // Обновляем глобальные счётчики для статистики
+    window.totalSafeCells = totalSafe;
+    window.revealedSafeCells = revealedSafe;
+
+    let clearancePct = totalSafe > 0 ? revealedSafe / totalSafe : 0;
+    let enemiesKilled = window.raidStats ? window.raidStats.enemiesKilled : 0;
+    let totalEnemies = window.totalEnemies || 0;
+    let enemiesKilledPct = totalEnemies > 0 ? enemiesKilled / totalEnemies : 1.0;
+
+    // Победа (полная зачистка): все враги убиты + все безопасные клетки открыты
+    if (enemiesLeft === 0 && revealedSafe >= totalSafe) {
+        processRaidVictory(true);
+        return;
+    }
+
+    // Цель рейда выполнена (75%+): все враги убиты + открыто ≥75% территории
+    if (enemiesLeft === 0 && clearancePct >= 0.75) {
+        if (!window.raidObjectiveReached) {
+            window.raidObjectiveReached = true;
+            logEvent(t('msg_objective_reached_log'), 'log-loot');
+        }
+    }
+
+    // Кнопка в лагерь появляется при 75 процентах зачистки карты и 65 процентах убитых врагов
+    if (clearancePct >= 0.75 && enemiesKilledPct >= 0.65) {
+        if (!window.raidExtractionAvailable) {
+            window.raidExtractionAvailable = true;
+            logEvent(t('msg_extraction_available'), 'log-loot');
+        }
+        showReturnToCampButton(window.raidObjectiveReached);
+    } else {
+        hideReturnToCampButton();
     }
 }
 
-function processRaidVictory() {
+function processRaidVictory(isFullClear = false) {
+    // Предотвращаем повторный вызов
+    if (window.raidVictoryProcessed) return;
+    window.raidVictoryProcessed = true;
+
     player.wins = (player.wins || 0) + 1;
     player.raidLevel = (player.raidLevel || 0) + 1;
     player.selectedRaidLevel = player.raidLevel;
@@ -794,11 +896,72 @@ function processRaidVictory() {
         saveGame();
     }
 
+    // Скрываем кнопку возврата
+    hideReturnToCampButton();
+
     showHub();
     showCustomModal(
         t('msg_victory_text') + getRaidStatsSummary(),
         t('modal_title_victory')
     );
+}
+
+// Показать/скрыть кнопку возврата в лагерь
+function showReturnToCampButton(isObjectiveMet) {
+    const btn = document.getElementById('btn-return-camp');
+    const overlay = document.getElementById('area-cleared-overlay');
+    if (!btn) return;
+
+    btn.classList.remove('hidden');
+
+    if (isObjectiveMet) {
+        // Полная зачистка — подсвечиваем кнопку золотом
+        btn.classList.add('btn-return-camp--cleared');
+        if (overlay) {
+            overlay.textContent = t('msg_area_cleared');
+            overlay.classList.remove('hidden');
+            overlay.classList.add('area-cleared-visible');
+        }
+    } else {
+        btn.classList.remove('btn-return-camp--cleared');
+    }
+
+    // Обновляем текст кнопки
+    btn.textContent = t('btn_return_camp');
+}
+
+function hideReturnToCampButton() {
+    const btn = document.getElementById('btn-return-camp');
+    const overlay = document.getElementById('area-cleared-overlay');
+    if (btn) btn.classList.add('hidden');
+    if (overlay) {
+        overlay.classList.add('hidden');
+        overlay.classList.remove('area-cleared-visible');
+    }
+}
+
+async function returnToCamp() {
+    if (gameState !== 'RAID') return;
+    playSound('button');
+
+    let isCleared = window.raidObjectiveReached || false;
+    let confirmMsg = isCleared
+        ? t('msg_return_camp_confirm_clear')
+        : t('msg_return_camp_confirm');
+
+    let choice = await showCustomModal(confirmMsg, t('modal_title_return'), true);
+    if (!choice) return;
+
+    if (isCleared) {
+        // Засчитываем победу
+        processRaidVictory(false);
+    } else {
+        // Просто уходим — лут сохраняем, победа не засчитывается
+        items.forEach(it => { if (it.container === 'pockets') it.container = 'stash'; });
+        hideReturnToCampButton();
+        showHub();
+        showCustomModal(t('msg_tp_success') + getRaidStatsSummary(), t('modal_title_evac'));
+    }
 }
 
 // --- СИСТЕМА НЕПРЕРЫВНОГО ДВИЖЕНИЯ КАМЕРЫ ---
@@ -916,7 +1079,8 @@ function lootChest(cell, cx, cy) {
             logEvent(t('msg_found_item', { name: getItemName(item), gold: goldFound }));
             playSound('inventory');
             renderInventory();
-            addEffect('floating_loot', cx !== undefined ? cx : 0, cy !== undefined ? cy : 0, 0, { lootType: 'gold', amount: goldFound });
+            addEffect('floating_loot', cx !== undefined ? cx : 0, cy !== undefined ? cy : 0, 0, { lootType: 'gold', amount: goldFound, offsetY: 12 });
+            addEffect('floating_loot', cx !== undefined ? cx : 0, cy !== undefined ? cy : 0, 0, { lootType: 'item', item: item, offsetY: -12 });
         } else {
             player.gold -= goldFound;
             logEvent(t('msg_chest_full', { name: getItemName(item) }), 'log-error');

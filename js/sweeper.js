@@ -217,7 +217,7 @@ function addEffect(type, cx, cy, delay = 0, extra = null) {
         Object.assign(effect, extra);
     }
     
-    if (type === 'floating_loot') {
+    if (type === 'floating_loot' || type === 'floating_damage') {
         effect.duration = 1000;
     } else if (type === 'expo') {
         effect.image = images.effect_expo;
@@ -314,7 +314,7 @@ function drawEffects() {
             ctx.globalAlpha = 1 - progress;
 
             let px = fx.cx * CELL_SIZE - cameraX + CELL_SIZE / 2;
-            let py = fx.cy * CELL_SIZE - cameraY - progress * 45; // float up 45px
+            let py = fx.cy * CELL_SIZE - cameraY - progress * 45 + (fx.offsetY || 0); // float up 45px with optional offset
 
             ctx.font = 'bold 15px sans-serif';
             ctx.textAlign = 'center';
@@ -374,8 +374,58 @@ function drawEffects() {
                 ctx.lineWidth = 1;
                 ctx.strokeStyle = '#8a2be2'; 
                 ctx.stroke();
+            } else if (fx.lootType === 'item' && fx.item) {
+                let name = getItemName(fx.item);
+                
+                let color = '#ffffff';
+                if (fx.item.rarity === 'green') color = '#88ff88';
+                else if (fx.item.rarity === 'red') color = '#ff5555';
+                
+                ctx.fillStyle = '#000000';
+                ctx.fillText(name, px - 11, py + 1);
+                
+                ctx.fillStyle = color;
+                ctx.fillText(name, px - 12, py);
+                
+                let imgKey = fx.item.img;
+                let img = images[imgKey];
+                if (img && img.complete) {
+                    let iconW = 16;
+                    let iconH = 16;
+                    let iconX = px + ctx.measureText(name).width / 2 + 4;
+                    let iconY = py - iconH / 2;
+                    ctx.drawImage(img, iconX, iconY, iconW, iconH);
+                }
             }
             
+            ctx.restore();
+            continue;
+        } else if (fx.type === 'floating_damage') {
+            ctx.save();
+            ctx.globalAlpha = 1 - progress;
+
+            let px = fx.cx * CELL_SIZE - cameraX + CELL_SIZE / 2;
+            let py = fx.cy * CELL_SIZE - cameraY - progress * 40 - 5; 
+
+            ctx.font = 'bold 12px "Press Start 2P", monospace, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            let text = `-${fx.amount}`;
+            
+            // Тень текста для читаемости
+            ctx.fillStyle = '#000000';
+            ctx.fillText(text, px + 1.5, py + 1.5);
+
+            if (fx.isPlayer) {
+                // Урон по игроку: красный
+                ctx.fillStyle = '#ff3333';
+            } else {
+                // Урон по врагу: оранжевый
+                ctx.fillStyle = '#ffaa00';
+            }
+            ctx.fillText(text, px, py);
+
             ctx.restore();
             continue;
         }
@@ -695,7 +745,7 @@ function drawBoard() {
                     ctx.fillText('L' + cell.lvl, px + 2, py + 10);
 
                     // Отрисовка ХП-бара врага
-                    let maxHp = cell.lvl * (cell.enemyType === 'orc' ? 20 : 10);
+                    let maxHp = cell.lvl * (cell.enemyType === 'orc' ? 15 : 10); // Орк: 20→15
                     let hpPercent = Math.max(0, Math.min(1, cell.enemyHp / maxHp));
                     
                     let barW = 24;
@@ -712,8 +762,8 @@ function drawBoard() {
                     ctx.fillRect(barX, barY, Math.round(barW * hpPercent), barH);
                 }
             } else {
-                // Неоткрытые плитки (туман войны)
-                ctx.fillStyle = '#37474f';
+                // Неоткрытые плитки (туман войны — цвет темнее к краям)
+                ctx.fillStyle = cell.fogShade || '#37474f';
                 ctx.fillRect(px, py, CELL_SIZE, CELL_SIZE);
                 ctx.strokeStyle = '#263238';
                 ctx.strokeRect(px, py, CELL_SIZE, CELL_SIZE);
@@ -728,6 +778,20 @@ function drawBoard() {
             }
         }
     }
+
+    // --- ОТРИСОВКА ГРАНИЦ КАРТЫ ---
+    ctx.save();
+    // Внешняя черная обводка для контраста
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 6;
+    ctx.strokeRect(-cameraX, -cameraY, MAP_W * CELL_SIZE, MAP_H * CELL_SIZE);
+    
+    // Внутренняя золотая линия
+    ctx.strokeStyle = '#ffcc00';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(-cameraX, -cameraY, MAP_W * CELL_SIZE, MAP_H * CELL_SIZE);
+    ctx.restore();
+
     // --- ОФФ-СКРИН ИНДИКАТОРЫ ВРАГОВ (КРАСНЫЕ ПОЛОСКИ НА КРАЯХ ЭКРАНА) ---
     for (let x = 0; x < MAP_W; x++) {
         for (let y = 0; y < MAP_H; y++) {

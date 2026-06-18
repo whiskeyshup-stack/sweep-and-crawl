@@ -20,21 +20,13 @@
             Удачи, солдат!
         </p>
         
-        <div style="border: 2px dashed #555; padding: 15px; text-align: left; font-size: 7px; line-height: 1.6; color: #aaa; width: 100%; max-width: 450px; background: rgba(0,0,0,0.2);">
-            <div style="color: #ffcc00; text-align: center; margin-bottom: 8px; font-size: 8px;">🎮 УПРАВЛЕНИЕ</div>
-            • 🖱️ ЛКМ — Открыть клетку / Атаковать врага<br>
-            • 🖱️ ПКМ — Поставить флаг (пометить мину)<br>
-            • ⌨️ WASD / Стрелочки — Перемещение камеры<br>
-            • 🛡️ Цифры показывают количество мин вокруг!
-        </div>
-
         <button id="btn-start-game" class="btn-upgrade" style="font-size: 10px; padding: 15px 30px; cursor: pointer; min-width: 200px; margin-top: 10px; border-radius: 4px;" onclick="startGame()">ИГРАТЬ</button>
     </div>
 
     <div id="hub-screen" style="display: none;">
         <!-- Панель настроек звука -->
         <div style="width: 170px; display: flex; flex-direction: column; gap: 15px; border-right: 1px solid #444; padding-right: 15px;">
-            <h2 style="margin-top:0; text-align:center; font-size:10px;">⚙️ НАСТРОЙКИ</h2>
+            <h2 style="margin-top:0; text-align:center; font-size:10px;">НАСТРОЙКИ</h2>
             
             <!-- Общий звук -->
             <div style="display:flex; flex-direction:column; gap:6px;">
@@ -74,21 +66,21 @@
 
             <!-- Кнопка сброса сейва перенесена сюда -->
             <div style="margin-top: 10px;">
-                <button class="btn-reset" style="width: 100%; font-size: 8px; padding: 10px;" onclick="resetGame()">❌ СБРОСИТЬ СЕЙВ</button>
+                <button class="btn-reset" style="width: 100%; font-size: 8px; padding: 10px;" onclick="resetGame()">СБРОСИТЬ СЕЙВ</button>
             </div>
         </div>
 
         <div>
-            <h2 style="margin-top:0;">📦 ХРАНИЛИЩЕ</h2>
+            <h2 style="margin-top:0;">ХРАНИЛИЩЕ</h2>
             <div id="stash-grid" class="inv-grid" data-container="stash" style="width: 388px; height: 388px;"></div>
         </div>
         <div style="width: 210px;">
-            <h2 style="margin-top:0; text-align:center;">👤 ГЕРОЙ</h2>
-            <div class="stat-line" style="font-size:10px;">🪙 ЗОЛОТО: <span id="hub-gold" style="color: gold;">0</span></div>
-            <div class="stat-line" style="font-size:10px;">🔮 ДУШИ: <span id="hub-shards" style="color: #a020f0;">0</span></div>
-            <div class="stat-line" style="font-size:10px;">🏆 ПОБЕДЫ: <span id="hub-wins" style="color: #00ffff;">0</span></div>
+            <h2 style="margin-top:0; text-align:center;">ГЕРОЙ</h2>
+            <div class="stat-line" style="font-size:10px;">ЗОЛОТО: <span id="hub-gold" style="color: gold;">0</span></div>
+            <div class="stat-line" style="font-size:10px;">ДУШИ: <span id="hub-shards" style="color: #a020f0;">0</span></div>
+            <div class="stat-line" style="font-size:10px;">ПОБЕДЫ: <span id="hub-wins" style="color: #00ffff;">0</span></div>
             <div class="stat-line" style="font-size:10px; margin-bottom:15px; color: #ff5555; align-items: center;">
-                <span>💀 УГРОЗА:</span>
+                <span>УГРОЗА:</span>
                 <div style="display: flex; gap: 5px; align-items: center;">
                     <button onclick="changeRaidLevel(-1)" class="btn-upgrade" style="min-width: 16px; padding: 2px;">&lt;</button>
                     <span id="hub-raid-lvl">0</span>
@@ -98,7 +90,7 @@
 
             <div style="margin-bottom: 15px; text-align: center;">
                 <button id="buy-shards-btn" class="btn-upgrade" style="padding: 5px; width: 100%; font-family: 'Press Start 2P', monospace; font-size: 8px;" onclick="buyShards()">
-                    Купить 5🔮 за 100🪙
+                    Купить 5 за 100
                 </button>
             </div>
 
@@ -116,18 +108,18 @@
             </div>
 
             <div style="margin-top: 15px; border-top: 1px solid #444; padding-top: 10px;">
-                <div style="font-size:9px; text-align:center; color:#ffcc00; margin-bottom:12px;">🔮 УЛУЧШЕНИЯ</div>
+                <div style="font-size:9px; text-align:center; color:#ffcc00; margin-bottom:12px;">УЛУЧШЕНИЯ</div>
                 <div class="upgrade-row">
-                    <span>⚔️ УРОН: <span id="hub-atk">5</span></span>
-                    <button id="up-atk-btn" class="btn-upgrade" onclick="upgradeStat('atk')">+1 (10🔮)</button>
+                    <span>УРОН: <span id="hub-atk">5</span></span>
+                    <button id="up-atk-btn" class="btn-upgrade" onclick="upgradeStat('atk')">+1 (10)</button>
                 </div>
                 <div class="upgrade-row">
-                    <span>❤️ ХП: <span id="hub-hp">100</span></span>
-                    <button id="up-hp-btn" class="btn-upgrade" onclick="upgradeStat('hp')">+10 (15🔮)</button>
+                    <span>ХП: <span id="hub-hp">100</span></span>
+                    <button id="up-hp-btn" class="btn-upgrade" onclick="upgradeStat('hp')">+10 (15)</button>
                 </div>
                 <div class="upgrade-row">
-                    <span>🛡️ ДЕФ: <span id="hub-arm">0</span></span>
-                    <button id="up-arm-btn" class="btn-upgrade" onclick="upgradeStat('arm')">+1 (20🔮)</button>
+                    <span>ДЕФ: <span id="hub-arm">0</span></span>
+                    <button id="up-arm-btn" class="btn-upgrade" onclick="upgradeStat('arm')">+1 (20)</button>
                 </div>
             </div>
 
@@ -138,33 +130,40 @@
     <div id="raid-screen">
         <div id="board-wrapper">
             <canvas id="gameCanvas"></canvas>
-            <div id="camera-pad">
-                <button class="cam-btn cam-ul" onmousedown="startContinuousCameraMove(-1, -1)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(-1, -1)" ontouchend="stopContinuousCameraMove()"></button>
-                <button class="cam-btn cam-u" onmousedown="startContinuousCameraMove(0, -1)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(0, -1)" ontouchend="stopContinuousCameraMove()"></button>
-                <button class="cam-btn cam-ur" onmousedown="startContinuousCameraMove(1, -1)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(1, -1)" ontouchend="stopContinuousCameraMove()"></button>
-                <button class="cam-btn cam-l" onmousedown="startContinuousCameraMove(-1, 0)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(-1, 0)" ontouchend="stopContinuousCameraMove()"></button>
-                <div></div>
-                <button class="cam-btn cam-r" onmousedown="startContinuousCameraMove(1, 0)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(1, 0)" ontouchend="stopContinuousCameraMove()"></button>
-                <button class="cam-btn cam-dl" onmousedown="startContinuousCameraMove(-1, 1)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(-1, 1)" ontouchend="stopContinuousCameraMove()"></button>
-                <button class="cam-btn cam-d" onmousedown="startContinuousCameraMove(0, 1)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(0, 1)" ontouchend="stopContinuousCameraMove()"></button>
-                <button class="cam-btn cam-dr" onmousedown="startContinuousCameraMove(1, 1)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(1, 1)" ontouchend="stopContinuousCameraMove()"></button>
+            <!-- Надпись "Область зачищена" поверх поля -->
+            <div id="area-cleared-overlay" class="hidden">ОБЛАСТЬ ЗАЧИЩЕНА</div>
+            <div id="camera-controls-wrapper">
+                <!-- Кнопка "В Лагерь" (десктоп: над джойстиком; мобайл: слева от джойстика) -->
+                <button id="btn-return-camp" class="hidden" onclick="returnToCamp()">В ЛАГЕРЬ</button>
+                <div id="camera-pad">
+                    <button class="cam-btn cam-ul" onmousedown="startContinuousCameraMove(-1, -1)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(-1, -1)" ontouchend="stopContinuousCameraMove()"></button>
+                    <button class="cam-btn cam-u" onmousedown="startContinuousCameraMove(0, -1)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(0, -1)" ontouchend="stopContinuousCameraMove()"></button>
+                    <button class="cam-btn cam-ur" onmousedown="startContinuousCameraMove(1, -1)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(1, -1)" ontouchend="stopContinuousCameraMove()"></button>
+                    <button class="cam-btn cam-l" onmousedown="startContinuousCameraMove(-1, 0)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(-1, 0)" ontouchend="stopContinuousCameraMove()"></button>
+                    <div></div>
+                    <button class="cam-btn cam-r" onmousedown="startContinuousCameraMove(1, 0)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(1, 0)" ontouchend="stopContinuousCameraMove()"></button>
+                    <button class="cam-btn cam-dl" onmousedown="startContinuousCameraMove(-1, 1)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(-1, 1)" ontouchend="stopContinuousCameraMove()"></button>
+                    <button class="cam-btn cam-d" onmousedown="startContinuousCameraMove(0, 1)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(0, 1)" ontouchend="stopContinuousCameraMove()"></button>
+                    <button class="cam-btn cam-dr" onmousedown="startContinuousCameraMove(1, 1)" onmouseup="stopContinuousCameraMove()" onmouseleave="stopContinuousCameraMove()" ontouchstart="startContinuousCameraMove(1, 1)" ontouchend="stopContinuousCameraMove()"></button>
+                </div>
             </div>
         </div>
         <div id="gui-panel">
             <div>
-                <div class="stat-line"><span>❤️ ХП:</span><span id="hp-txt-val">100/100</span></div>
+                <div class="stat-line"><span>ХП:</span><span id="hp-txt-val">100/100</span></div>
                 <div id="hp-bar-wrapper">
+                    <div id="hp-bar-catchup"></div>
                     <div id="hp-bar"></div>
                     <div id="hp-text">100 / 100</div>
                 </div>
             </div>
-            <div class="stat-line"><span id="raid-atk-label">⚔️ УРОН:</span> <span id="atk-val">5</span></div>
-            <div class="stat-line"><span id="raid-arm-label">🛡️ ЗАЩИТА:</span> <span id="arm-val">0</span></div>
+            <div class="stat-line"><span id="raid-atk-label">УРОН:</span> <span id="atk-val">5</span></div>
+            <div class="stat-line"><span id="raid-arm-label">ЗАЩИТА:</span> <span id="arm-val">0</span></div>
 
             <div id="equipment-parent-raid" style="margin-top: 10px; margin-bottom: 10px;"></div>
 
             <hr style="border-color:#444; width:100%;">
-            <div style="text-align: center; color: #aaa;">🎒 КАРМАНЫ</div>
+            <div style="text-align: center; color: #aaa;">КАРМАНЫ</div>
             <div id="pockets-grid" class="inv-grid" data-container="pockets" style="width: 196px; height: 260px;"></div>
         </div>
     </div>
@@ -186,6 +185,7 @@
         </div>
     </div>
 
+    <script src="js/i18n.js"></script>
     <script src="js/config.js"></script>
     <script src="js/inventory.js"></script>
     <script src="js/sweeper-logic.js"></script>

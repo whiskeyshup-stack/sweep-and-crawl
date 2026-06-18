@@ -42,41 +42,66 @@ function renderInventory() {
         el.dataset.index = index;
 
         if (images[item.img] && images[item.img].complete) {
-            let img = document.createElement('img'); img.src = images[item.img].src; el.appendChild(img);
+            let img = document.createElement('img');
+            img.src = images[item.img].src;
+            // Если предмет повернут, применяем CSS-трансформацию поворота
+            if (item.isRotated) {
+                img.style.position = 'absolute';
+                img.style.left = '50%';
+                img.style.top = '50%';
+                img.style.width = `${item.h * TILE_SIZE}px`;
+                img.style.height = `${item.w * TILE_SIZE}px`;
+                img.style.transform = 'translate(-50%, -50%) rotate(90deg)';
+            } else {
+                img.style.width = '100%';
+                img.style.height = '100%';
+            }
+            el.appendChild(img);
         } else {
-            el.style.fontSize = '9px'; el.innerText = getItemName(item).substring(0, 4);
+            el.style.fontSize = '9px';
+            el.innerText = getItemName(item).substring(0, 4);
         }
 
-        // Открытие контекстного меню при левом или правом клике
-        el.addEventListener('click', e => {
-            e.preventDefault();
-            e.stopPropagation();
-            showContextMenu(e, index);
-        });
+        // Открытие контекстного меню при правом клике
         el.addEventListener('contextmenu', e => {
             e.preventDefault();
             e.stopPropagation();
-            showContextMenu(e, index);
+            if (!window.draggedItem && !window.dragPending) {
+                showContextMenu(e, index);
+            }
         });
-        // Поддержка тапа на мобильных для открытия контекстного меню
-        el.addEventListener('touchend', e => {
-            e.preventDefault();
-            e.stopPropagation();
-            // Создаём фейковый объект с координатами касания
-            let touch = e.changedTouches[0];
-            let fakeEvent = { clientX: touch.clientX, clientY: touch.clientY, preventDefault: () => {}, stopPropagation: () => {} };
-            showContextMenu(fakeEvent, index);
-        }, { passive: false });
-
-        // DRAG AND DROP
-        // НОВОЕ: Запрещаем таскать вещи, если они надеты
-        el.draggable = !item.container.startsWith('equip_');
-
-        el.addEventListener('dragstart', e => {
-            e.dataTransfer.setData('text/plain', index);
-            setTimeout(() => el.style.visibility = 'hidden', 0);
-        });
-        el.addEventListener('dragend', () => el.style.visibility = 'visible');
+        
+        // DRAG AND DROP (кастомная реализация) и открытие меню на левый клик/тап
+        if (!item.container.startsWith('equip_')) {
+            el.addEventListener('mousedown', e => {
+                if (e.button === 0) { // Только левый клик
+                    e.preventDefault();
+                    e.stopPropagation();
+                    initDragOrClick(index, e);
+                }
+            });
+            
+            el.addEventListener('touchstart', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                initDragOrClick(index, e.touches[0]);
+            }, { passive: false });
+        } else {
+            // Если вещь надета (экипирована), левый клик сразу открывает контекстное меню (её нельзя таскать)
+            el.addEventListener('click', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                showContextMenu(e, index);
+            });
+            
+            el.addEventListener('touchend', e => {
+                e.preventDefault();
+                e.stopPropagation();
+                let touch = e.changedTouches[0];
+                let fakeEvent = { clientX: touch.clientX, clientY: touch.clientY, preventDefault: () => {}, stopPropagation: () => {} };
+                showContextMenu(fakeEvent, index);
+            }, { passive: false });
+        }
 
         GRIDS[item.container].el.appendChild(el);
     });
@@ -142,7 +167,7 @@ function showContextMenu(e, index) {
 
     if (item.type === 'weapon' || item.type === 'armor') {
         if (item.container.startsWith('equip_')) {
-            actionBtn.innerText = t('inv_ctx_unequip');
+            actionBtn.innerHTML = t('inv_ctx_unequip');
             actionBtn.onclick = () => {
                 let targetContainer = (gameState === 'HUB') ? 'stash' : 'pockets';
                 let pos = findFreeSpace(item.w, item.h, targetContainer);
@@ -157,7 +182,7 @@ function showContextMenu(e, index) {
                 renderInventory();
             };
         } else {
-            actionBtn.innerText = t('inv_ctx_equip');
+            actionBtn.innerHTML = t('inv_ctx_equip');
             actionBtn.onclick = () => {
                 let slotName = (item.type === 'weapon') ? 'equip_sword' : 'equip_armor';
                 let currentEquip = items.find(it => it.container === slotName);
@@ -171,6 +196,15 @@ function showContextMenu(e, index) {
                     currentEquip.y = oldY;
                     currentEquip.container = oldContainer;
                 }
+                
+                // Сброс поворота при экипировке
+                if (item.isRotated) {
+                    let temp = item.w;
+                    item.w = item.h;
+                    item.h = temp;
+                    item.isRotated = false;
+                }
+
                 item.x = 0;
                 item.y = 0;
                 item.container = slotName;
@@ -180,7 +214,7 @@ function showContextMenu(e, index) {
             };
         }
     } else {
-        actionBtn.innerText = t('inv_ctx_use');
+        actionBtn.innerHTML = t('inv_ctx_use');
         actionBtn.onclick = () => {
             useConsumable(item, index);
         };
@@ -192,7 +226,7 @@ function showContextMenu(e, index) {
         let sellBtn = document.createElement('div');
         sellBtn.className = 'context-menu-item';
         let val = (item.rarity === 'red') ? 100 : (item.rarity === 'green' ? 30 : 10);
-        sellBtn.innerText = t('inv_ctx_sell', { val: val });
+        sellBtn.innerHTML = t('inv_ctx_sell', { val: val });
         sellBtn.onclick = () => {
             player.gold += val;
             items.splice(index, 1);
@@ -207,7 +241,7 @@ function showContextMenu(e, index) {
     if (gameState === 'RAID') {
         let destroyBtn = document.createElement('div');
         destroyBtn.className = 'context-menu-item';
-        destroyBtn.innerText = t('inv_ctx_destroy_btn');
+        destroyBtn.innerHTML = t('inv_ctx_destroy_btn');
         destroyBtn.onclick = async () => {
             if (await showCustomModal(t('inv_ctx_destroy_confirm', { name: getItemName(item) }), t('inv_ctx_destroy_title'), true)) {
                 items.splice(index, 1);
@@ -297,7 +331,7 @@ async function useConsumable(item, index) {
             renderInventory(); // Просто закрываем меню, свиток остаётся на месте
         }
     } else if (item.type === 'food') {
-        let healPercent = 0.10 + Math.random() * 0.05;
+        let healPercent = 0.25 + Math.random() * 0.10; // Усилено: 10-15% →25-35%
         let healAmt = Math.round(player.maxHp * healPercent);
         player.hp = Math.min(player.maxHp, player.hp + healAmt);
         logEvent(t('msg_food_log', { heal: healAmt }), "log-sys");
@@ -319,7 +353,7 @@ async function useConsumable(item, index) {
         updateUi(); renderInventory();
     } else if (item.type === 'scroll_invis') {
         player.isInvulnerable = true;
-        player.invulnCharges = 5;
+        player.invulnCharges = 3; // Ослаблено: 5→3 заряда
         logEvent(t('msg_scroll_invis_log'), "log-sys");
         playSound('holyspell');
         items.splice(index, 1);
@@ -338,45 +372,423 @@ document.addEventListener('click', () => {
     let tooltip = document.getElementById('inv-item-tooltip');
     if (tooltip) tooltip.style.display = 'none';
 });
+
 document.addEventListener('contextmenu', (e) => {
     e.preventDefault();
 });
 
-// Навешиваем слушатели на все контейнеры инвентаря
-Object.keys(GRIDS).forEach(cName => {
-    let el = GRIDS[cName].el;
-    el.addEventListener('dragover', e => e.preventDefault());
-    el.addEventListener('drop', e => {
-        e.preventDefault();
+// --- КАСТОМНАЯ СИСТЕМА ДРАГ-ЭНД-ДРОПА С ПОВОРОТОМ (КАК В ТАРКОВЕ) ---
+window.draggedItem = null;
+window.draggedItemIndex = null;
+window.draggedItemOrig = null;
+window.draggedElement = null;
+window.dragGrabOffset = { x: 0, y: 0 };
+window.draggedCurrentX = 0;
+window.draggedCurrentY = 0;
+window.draggedTargetX = 0;
+window.draggedTargetY = 0;
+window.isSnapping = false;
 
-        // НОВОЕ: Запрет перетаскивания В слоты экипировки
-        if (cName.startsWith('equip_')) {
-            logEvent(t('msg_cant_drag_equip'), "log-error");
-            return;
+window.dragStartPointer = { x: 0, y: 0 };
+window.dragStartItemIndex = null;
+window.dragPending = false;
+
+function initDragOrClick(index, pointerEvent) {
+    if (window.draggedItem || window.isSnapping) return;
+    
+    window.dragPending = true;
+    window.dragStartItemIndex = index;
+    window.dragStartPointer = { x: pointerEvent.clientX, y: pointerEvent.clientY };
+}
+
+function startDragging(index, pointerEvent) {
+    if (window.draggedItem || window.isSnapping) return;
+    
+    // Закрываем открытые контекстные меню и тултипы
+    let menu = document.getElementById('inv-context-menu');
+    if (menu) menu.style.display = 'none';
+    let tooltip = document.getElementById('inv-item-tooltip');
+    if (tooltip) tooltip.style.display = 'none';
+
+    let item = items[index];
+    window.draggedItem = item;
+    window.draggedItemIndex = index;
+    window.draggedItemOrig = {
+        x: item.x,
+        y: item.y,
+        container: item.container,
+        w: item.w,
+        h: item.h,
+        isRotated: item.isRotated || false
+    };
+
+    // Создаем плавающий элемент, следующий за мышью
+    let el = document.createElement('div');
+    el.className = `inv-item rarity-${item.rarity}`;
+    el.style.width = `${item.w * TILE_SIZE}px`;
+    el.style.height = `${item.h * TILE_SIZE}px`;
+    el.style.position = 'fixed';
+    el.style.pointerEvents = 'none';
+    el.style.zIndex = '9999';
+    el.style.opacity = '0.85';
+    el.style.boxShadow = '0 6px 12px rgba(0,0,0,0.6)';
+    el.style.border = '2px solid #ffcc00';
+
+    if (images[item.img] && images[item.img].complete) {
+        let img = document.createElement('img');
+        img.src = images[item.img].src;
+        if (item.isRotated) {
+            img.style.position = 'absolute';
+            img.style.left = '50%';
+            img.style.top = '50%';
+            img.style.width = `${item.h * TILE_SIZE}px`;
+            img.style.height = `${item.w * TILE_SIZE}px`;
+            img.style.transform = 'translate(-50%, -50%) rotate(90deg)';
+        } else {
+            img.style.width = '100%';
+            img.style.height = '100%';
         }
+        el.appendChild(img);
+    } else {
+        el.style.fontSize = '9px';
+        el.innerText = getItemName(item).substring(0, 4);
+    }
+    
+    document.body.appendChild(el);
+    window.draggedElement = el;
 
-        let index = parseInt(e.dataTransfer.getData('text/plain'));
-        let item = items[index];
-        let currentZoom = parseFloat(getComputedStyle(document.body).zoom) || 1.0;
-        let rect = el.getBoundingClientRect();
-        let targetX = Math.floor(((e.clientX - rect.left) / currentZoom) / TILE_SIZE);
-        let targetY = Math.floor(((e.clientY - rect.top) / currentZoom) / TILE_SIZE);
+    // Скрываем оригинальный элемент
+    let origEl = GRIDS[item.container].el.querySelector(`[data-index="${index}"]`);
+    if (origEl) {
+        origEl.style.opacity = '0';
+    }
 
-        if (GRIDS[cName].restrict && item.type !== GRIDS[cName].restrict) return renderInventory();
+    // Вычисляем начальные экранные координаты ячейки в зум-пикселях для плавного старта
+    let origGridDef = GRIDS[item.container];
+    let origRect = origGridDef.el.getBoundingClientRect();
+    let currentZoom = parseFloat(getComputedStyle(document.body).zoom) || 1.0;
+    
+    let gridLeft = origRect.left / currentZoom;
+    let gridTop = origRect.top / currentZoom;
+    
+    let startLeft = gridLeft + item.x * TILE_SIZE;
+    let startTop = gridTop + item.y * TILE_SIZE;
 
-        if (targetX >= 0 && targetX + item.w <= GRIDS[cName].w && targetY >= 0 && targetY + item.h <= GRIDS[cName].h) {
+    // Устанавливаем текущую позицию плавающего элемента в стартовую координату ячейки
+    window.draggedCurrentX = startLeft;
+    window.draggedCurrentY = startTop;
+    
+    el.style.left = `${startLeft}px`;
+    el.style.top = `${startTop}px`;
+
+    // Рассчитываем смещение захвата курсора внутри элемента
+    let itemRect = origEl ? origEl.getBoundingClientRect() : { left: pointerEvent.clientX, top: pointerEvent.clientY };
+    window.dragGrabOffset = {
+        x: (pointerEvent.clientX - itemRect.left) / currentZoom,
+        y: (pointerEvent.clientY - itemRect.top) / currentZoom
+    };
+
+    // Обновляем цель на координаты мыши
+    window.draggedTargetX = pointerEvent.clientX / currentZoom - window.dragGrabOffset.x;
+    window.draggedTargetY = pointerEvent.clientY / currentZoom - window.dragGrabOffset.y;
+
+    window.isSnapping = false;
+    
+    // Запускаем LERP-анимацию
+    requestAnimationFrame(updateDragLoop);
+    
+    playSound('inventory');
+}
+
+function updateDragLoop() {
+    if (!window.draggedItem || !window.draggedElement || window.isSnapping) return;
+    
+    let dx = window.draggedTargetX - window.draggedCurrentX;
+    let dy = window.draggedTargetY - window.draggedCurrentY;
+    
+    // Коэффициент интерполяции (0.25 дает идеальный баланс отзывчивости и мягкости)
+    window.draggedCurrentX += dx * 0.25;
+    window.draggedCurrentY += dy * 0.25;
+    
+    window.draggedElement.style.left = `${window.draggedCurrentX}px`;
+    window.draggedElement.style.top = `${window.draggedCurrentY}px`;
+    
+    requestAnimationFrame(updateDragLoop);
+}
+
+function updateDraggedPosition(clientX, clientY) {
+    if (!window.draggedElement || window.isSnapping) return;
+    let currentZoom = parseFloat(getComputedStyle(document.body).zoom) || 1.0;
+    window.draggedTargetX = clientX / currentZoom - window.dragGrabOffset.x;
+    window.draggedTargetY = clientY / currentZoom - window.dragGrabOffset.y;
+}
+
+function rotateDraggedItem() {
+    if (!window.draggedItem || window.isSnapping) return;
+    let item = window.draggedItem;
+    
+    // Запрещаем вращать квадратные предметы (1x1, 2x2 и т.д.)
+    if (item.w === item.h) return;
+    
+    let oldW = item.w * TILE_SIZE;
+    let oldH = item.h * TILE_SIZE;
+    
+    // Вычисляем относительные координаты клика на предмете (от 0 до 1)
+    let pctX = window.dragGrabOffset.x / oldW;
+    let pctY = window.dragGrabOffset.y / oldH;
+    
+    // Поворачиваем размеры предмета
+    let temp = item.w;
+    item.w = item.h;
+    item.h = temp;
+    
+    let newW = item.w * TILE_SIZE;
+    let newH = item.h * TILE_SIZE;
+    
+    // Рассчитываем новые смещения мыши так, чтобы курсор оставался на той же точке текстуры при повороте на 90 градусов по часовой стрелке:
+    // newPctX = 1 - pctY
+    // newPctY = pctX
+    let newPctX = 1 - pctY;
+    let newPctY = pctX;
+    
+    let newGrabOffsetX = newPctX * newW;
+    let newGrabOffsetY = newPctY * newH;
+    
+    // Разница смещений, чтобы скорректировать координаты плавающего элемента и предотвратить отскок
+    let diffX = window.dragGrabOffset.x - newGrabOffsetX;
+    let diffY = window.dragGrabOffset.y - newGrabOffsetY;
+    
+    window.dragGrabOffset.x = newGrabOffsetX;
+    window.dragGrabOffset.y = newGrabOffsetY;
+    
+    // Корректируем текущую позицию и цель, чтобы предмет мгновенно развернулся ровно вокруг курсора
+    window.draggedCurrentX += diffX;
+    window.draggedCurrentY += diffY;
+    window.draggedTargetX += diffX;
+    window.draggedTargetY += diffY;
+    
+    // Обновляем плавающий DOM-элемент
+    if (window.draggedElement) {
+        window.draggedElement.style.width = `${item.w * TILE_SIZE}px`;
+        window.draggedElement.style.height = `${item.h * TILE_SIZE}px`;
+        
+        // Обновляем текущее положение DOM-элемента до следующего кадра LERP, чтобы не было микро-вспышки
+        window.draggedElement.style.left = `${window.draggedCurrentX}px`;
+        window.draggedElement.style.top = `${window.draggedCurrentY}px`;
+        
+        let img = window.draggedElement.querySelector('img');
+        if (img) {
+            let isRot = (item.w !== window.draggedItemOrig.w || item.h !== window.draggedItemOrig.h) ? !window.draggedItemOrig.isRotated : window.draggedItemOrig.isRotated;
+            if (isRot) {
+                img.style.position = 'absolute';
+                img.style.left = '50%';
+                img.style.top = '50%';
+                img.style.width = `${item.h * TILE_SIZE}px`;
+                img.style.height = `${item.w * TILE_SIZE}px`;
+                img.style.transform = 'translate(-50%, -50%) rotate(90deg)';
+            } else {
+                img.style.position = '';
+                img.style.left = '';
+                img.style.top = '';
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.transform = '';
+            }
+        }
+    }
+    
+    playSound('inventory');
+}
+
+function dropDraggedItem(clientX, clientY) {
+    if (window.isSnapping) return;
+    
+    let item = window.draggedItem;
+    let currentZoom = parseFloat(getComputedStyle(document.body).zoom) || 1.0;
+    
+    let targetContainer = null;
+    let targetX = -1;
+    let targetY = -1;
+    
+    for (let cName in GRIDS) {
+        if (cName.startsWith('equip_')) continue;
+        
+        let gridDef = GRIDS[cName];
+        let rect = gridDef.el.getBoundingClientRect();
+        
+        if (clientX >= rect.left && clientX <= rect.right &&
+            clientY >= rect.top && clientY <= rect.bottom) {
+            
+            let itemLeft = (clientX - rect.left) / currentZoom - window.dragGrabOffset.x;
+            let itemTop = (clientY - rect.top) / currentZoom - window.dragGrabOffset.y;
+            
+            targetX = Math.round(itemLeft / TILE_SIZE);
+            targetY = Math.round(itemTop / TILE_SIZE);
+            targetContainer = cName;
+            break;
+        }
+    }
+    
+    let success = false;
+    
+    if (targetContainer) {
+        let gridDef = GRIDS[targetContainer];
+        let isRestricted = gridDef.restrict && item.type !== gridDef.restrict;
+        
+        if (!isRestricted && 
+            targetX >= 0 && targetX + item.w <= gridDef.w && 
+            targetY >= 0 && targetY + item.h <= gridDef.h) {
+            
             let collision = false;
-            items.filter(it => it.container === cName && it !== item).forEach(it => {
+            items.filter(it => it.container === targetContainer && it !== item).forEach(it => {
                 let intersectX = Math.max(targetX, it.x) < Math.min(targetX + item.w, it.x + it.w);
                 let intersectY = Math.max(targetY, it.y) < Math.min(targetY + item.h, it.y + it.h);
                 if (intersectX && intersectY) collision = true;
             });
-
+            
             if (!collision) {
-                item.x = targetX; item.y = targetY; item.container = cName;
-                playSound('inventory');
+                success = true;
             }
         }
+    }
+    
+    // НАЧАЛО СМУЗ-СНЕП АНИМАЦИИ
+    window.isSnapping = true;
+    
+    let destLeft = 0;
+    let destTop = 0;
+    
+    if (success) {
+        let gridDef = GRIDS[targetContainer];
+        let rect = gridDef.el.getBoundingClientRect();
+        destLeft = rect.left / currentZoom + targetX * TILE_SIZE;
+        destTop = rect.top / currentZoom + targetY * TILE_SIZE;
+    } else {
+        // Слайд назад к исходной позиции
+        let origGridDef = GRIDS[window.draggedItemOrig.container];
+        let rect = origGridDef.el.getBoundingClientRect();
+        destLeft = rect.left / currentZoom + window.draggedItemOrig.x * TILE_SIZE;
+        destTop = rect.top / currentZoom + window.draggedItemOrig.y * TILE_SIZE;
+    }
+    
+    if (window.draggedElement) {
+        // Применяем CSS переход для идеальной плавности
+        window.draggedElement.style.transition = 'left 0.15s cubic-bezier(0.25, 0.8, 0.25, 1), top 0.15s cubic-bezier(0.25, 0.8, 0.25, 1)';
+        window.draggedElement.style.border = '2px solid #555'; // Убираем желтую рамку
+        window.draggedElement.style.left = `${destLeft}px`;
+        window.draggedElement.style.top = `${destTop}px`;
+    }
+    
+    setTimeout(() => {
+        if (success) {
+            item.x = targetX;
+            item.y = targetY;
+            item.container = targetContainer;
+            item.isRotated = (item.w !== window.draggedItemOrig.w || item.h !== window.draggedItemOrig.h) ? !window.draggedItemOrig.isRotated : window.draggedItemOrig.isRotated;
+            playSound('inventory');
+        } else {
+            item.x = window.draggedItemOrig.x;
+            item.y = window.draggedItemOrig.y;
+            item.container = window.draggedItemOrig.container;
+            item.w = window.draggedItemOrig.w;
+            item.h = window.draggedItemOrig.h;
+            item.isRotated = window.draggedItemOrig.isRotated;
+        }
+        
+        cleanupDragging();
         renderInventory();
-    });
+        window.isSnapping = false;
+    }, 150);
+}
+
+function cancelDragging() {
+    if (!window.draggedItem || window.isSnapping) return;
+    dropDraggedItem(-1000, -1000); // Принудительно вызываем фейл для плавного возврата
+}
+
+function cleanupDragging() {
+    window.draggedItem = null;
+    window.draggedItemIndex = null;
+    window.draggedItemOrig = null;
+    if (window.draggedElement) {
+        window.draggedElement.remove();
+        window.draggedElement = null;
+    }
+}
+
+// Глобальные слушатели событий мыши и клавиатуры для перетаскивания
+document.addEventListener('mousemove', e => {
+    if (window.dragPending) {
+        let dx = e.clientX - window.dragStartPointer.x;
+        let dy = e.clientY - window.dragStartPointer.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 5) {
+            window.dragPending = false;
+            startDragging(window.dragStartItemIndex, e);
+        }
+    } else if (window.draggedItem) {
+        updateDraggedPosition(e.clientX, e.clientY);
+    }
+});
+
+document.addEventListener('touchmove', e => {
+    if (window.dragPending) {
+        let touch = e.touches[0];
+        let dx = touch.clientX - window.dragStartPointer.x;
+        let dy = touch.clientY - window.dragStartPointer.y;
+        let dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 5) {
+            window.dragPending = false;
+            startDragging(window.dragStartItemIndex, touch);
+        }
+    } else if (window.draggedItem) {
+        let touch = e.touches[0];
+        updateDraggedPosition(touch.clientX, touch.clientY);
+    }
+}, { passive: false });
+
+document.addEventListener('mouseup', e => {
+    if (window.dragPending) {
+        // Это был обычный клик (мышка не двигалась) -> открываем контекстное меню
+        let index = window.dragStartItemIndex;
+        window.dragPending = false;
+        showContextMenu(e, index);
+    } else if (window.draggedItem) {
+        if (e.button === 0) {
+            dropDraggedItem(e.clientX, e.clientY);
+        }
+    }
+});
+
+document.addEventListener('touchend', e => {
+    if (window.dragPending) {
+        // Это был обычный тап на мобилке (без свайпа) -> открываем контекстное меню
+        let index = window.dragStartItemIndex;
+        window.dragPending = false;
+        let fakeEvent = { clientX: window.dragStartPointer.x, clientY: window.dragStartPointer.y, preventDefault: () => {}, stopPropagation: () => {} };
+        showContextMenu(fakeEvent, index);
+    } else if (window.draggedItem) {
+        let touch = e.changedTouches[0];
+        dropDraggedItem(touch.clientX, touch.clientY);
+    }
+});
+
+document.addEventListener('mousedown', e => {
+    if (window.draggedItem && e.button === 2) {
+        e.preventDefault();
+        e.stopPropagation();
+        rotateDraggedItem();
+    }
+});
+
+document.addEventListener('keydown', e => {
+    if (window.draggedItem) {
+        if (e.key.toLowerCase() === 'r' || e.key.toLowerCase() === 'к') {
+            e.preventDefault();
+            rotateDraggedItem();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelDragging();
+        }
+    }
 });

@@ -6,7 +6,7 @@ function logEvent(msg, styleClass = '') {
     if (styleClass) {
         div.className = styleClass;
     }
-    div.innerText = msg;
+    div.innerHTML = msg;
     logEl.appendChild(div);
     logEl.scrollTop = logEl.scrollHeight;
 }
@@ -126,6 +126,7 @@ function startRaid() {
     gameState = 'RAID';
     playSound('raidstart');
     playMusic(Math.random() < 0.5 ? 'music1' : 'music2');
+    if (typeof playAmbient === 'function') playAmbient();
     player.isInvulnerable = false;
     player.invulnCharges = 0;
 
@@ -138,6 +139,12 @@ function startRaid() {
         startTime: Date.now()
     };
 
+    // Сбрасываем флаги рейда
+    window.raidObjectiveReached = false;
+    window.raidVictoryProcessed = false;
+    window.raidExtractionAvailable = false;
+    if (typeof hideReturnToCampButton === 'function') hideReturnToCampButton();
+
     document.getElementById('hub-screen').style.display = 'none';
     document.getElementById('raid-screen').style.display = 'flex';
 
@@ -147,10 +154,10 @@ function startRaid() {
     }
     let activeLevel = Math.min(3, player.selectedRaidLevel !== undefined ? player.selectedRaidLevel : (player.raidLevel || 0));
 
-    let sizeMultiplier = 30 / BASE_MAP_W; // 0 уровень равен ровно 30x30
-    if (activeLevel === 1) sizeMultiplier = 0.56;
-    else if (activeLevel === 2) sizeMultiplier = 0.78;
-    else if (activeLevel >= 3) sizeMultiplier = 1.0;
+    let sizeMultiplier = 30 / BASE_MAP_W;  // L0 = 30×30
+    if (activeLevel === 1) sizeMultiplier = 50 / BASE_MAP_W;   // L1 = 50×50
+    else if (activeLevel === 2) sizeMultiplier = 80 / BASE_MAP_W;  // L2 = 80×80
+    else if (activeLevel >= 3) sizeMultiplier = 120 / BASE_MAP_W; // L3 = 120×120
 
     MAP_W = Math.floor(BASE_MAP_W * sizeMultiplier);
     MAP_H = Math.floor(BASE_MAP_H * sizeMultiplier);
@@ -192,6 +199,7 @@ function startRaid() {
     } else {
         drawBoard();
     }
+
 }
 
 function updateUi() {
@@ -204,7 +212,12 @@ function updateUi() {
     let displayHp = Math.floor(player.hp);
     document.getElementById('hp-txt-val').innerText = `${displayHp}/${player.maxHp}`;
     document.getElementById('hp-text').innerText = `${displayHp} / ${player.maxHp}`;
-    document.getElementById('hp-bar').style.width = `${Math.max(0, (player.hp / player.maxHp) * 100)}%`;
+    let hpPercentStr = `${Math.max(0, (player.hp / player.maxHp) * 100)}%`;
+    document.getElementById('hp-bar').style.width = hpPercentStr;
+    const catchupEl = document.getElementById('hp-bar-catchup');
+    if (catchupEl) {
+        catchupEl.style.width = hpPercentStr;
+    }
 
     document.getElementById('atk-val').innerText = player.baseAtk + getEquipStat('weapon');
     document.getElementById('arm-val').innerText = player.armor + getEquipStat('armor');
@@ -290,13 +303,13 @@ function toggleDebugGodmode() {
         btn.style.background = "#2e7d32";
         btn.style.borderColor = "#4caf50";
         btn.style.color = "#fff";
-        btn.innerText = "DEBUG: 🛡️ GODMODE [ON]";
+        btn.innerText = "DEBUG: GODMODE [ON]";
         logEvent(t('debug_godmode_on'), "log-loot");
     } else {
         btn.style.background = "#444";
         btn.style.borderColor = "#555";
         btn.style.color = "#ff5555";
-        btn.innerText = "DEBUG: 🛡️ GODMODE [OFF]";
+        btn.innerText = "DEBUG: GODMODE [OFF]";
         logEvent(t('debug_godmode_off'), "log-sys");
     }
     updateUi();
