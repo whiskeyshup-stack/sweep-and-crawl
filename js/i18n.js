@@ -58,11 +58,11 @@ const i18n = {
         msg_cant_equip: "Нельзя экипировать этот предмет!",
         msg_cant_unequip: "Сначала освободите место в хранилище!",
         msg_victory_text: "<img src=\"Ui/Win.png\" class=\"ui-icon\"> Поздравляем, солдат! Главная угроза позади: королевство очищено от скверны, а коварные мины колдуна больше не угрожают мирным жителям. Ты спас эти земли!\n\nОднако злые силы не дремлют, и в дальних уголках мира всё ещё находят следы магии колдуна. Твои карманы полны припасов, а осколки душ сделали тебя сильным как никогда.\n\nГотов ли ты к новым, ещё более опасным вылазкам, сапёр?",
-        msg_defeat_text: "Вы потеряли сознание!\n\nВсе содержимое карманов потеряно.\nВозвращение в Лагерь.",
+        msg_defeat_text: "Вы потеряли сознание!\n\nВсе содержимое карманов и 80% добытых в рейде золота/осколков потеряны.\nВозвращение в Лагерь.",
         msg_reset_confirm_1: "! ВНИМАНИЕ! Вы уверены, что хотите ПОЛНОСТЬЮ СБРОСИТЬ весь игровой прогресс, золото, улучшения и схрон?",
         msg_reset_confirm_2: "Окончательное подтверждение удаления. Это действие нельзя отменить!",
         msg_reset_done: "Сохранение успешно удалено. Игра перезагружается...",
-        msg_died_log: "<img src=\"Ui/Dead.png\" class=\"ui-icon\"> ВЫ ПОТЕРЯЛИ СОЗНАНИЕ. Весь лут из карманов потерян.",
+        msg_died_log: "<img src=\"Ui/Dead.png\" class=\"ui-icon\"> ВЫ ПОТЕРЯЛИ СОЗНАНИЕ. Карманный лут и 80% добытых ресурсов потеряны.",
         msg_raid_start_log: "--- НОВЫЙ РЕЙД НАЧАТ (УГРОЗА: LVL {lvl}) ---",
         
         stats_header: "СТАТИСТИКА ВЫЛАЗКИ:",
@@ -195,7 +195,8 @@ const i18n = {
         msg_extraction_available: "Эвакуация доступна! Вы можете вернуться в лагерь.",
         modal_title_return: "ВОЗВРАТ В ЛАГЕРЬ",
         msg_enemy_drop_food: "<img src=\"Ui/Heart.png\" class=\"ui-icon\"> Враг бросил окорочок!",
-        msg_enemy_drop_potion: "<img src=\"Ui/Heart.png\" class=\"ui-icon\"> Враг бросил малое зелье!"
+        msg_enemy_drop_potion: "<img src=\"Ui/Heart.png\" class=\"ui-icon\"> Враг бросил малое зелье!",
+        hub_pockets_title: "В РЕЙД (КАРМАНЫ)"
     },
     en: {
         welcome_title: "SWEEP & CRAWL",
@@ -254,11 +255,11 @@ const i18n = {
         msg_cant_equip: "Cannot equip this item!",
         msg_cant_unequip: "Free up space in stash first!",
         msg_victory_text: "<img src=\"Ui/Win.png\" class=\"ui-icon\"> Congratulations, soldier! The main threat is behind us: the kingdom is purged of corruption, and the wizard's treacherous mines no longer threaten the peaceful citizens. You have saved these lands!\n\nHowever, the dark forces do not rest, and traces of the wizard's magic are still found in distant corners of the world. Your pockets are pool of supplies, and soul shards have made you stronger than ever.\n\nAre you ready for new, even more dangerous incursions, sweeper?",
-        msg_defeat_text: "You lost consciousness!\n\nAll pocket contents have been lost.\nReturning to Camp.",
+        msg_defeat_text: "You lost consciousness!\n\nAll pocket contents and 80% of gold/shards gathered in this raid have been lost.\nReturning to Camp.",
         msg_reset_confirm_1: "! ATTENTION! Are you sure you want to COMPLETELY RESET all game progress, gold, upgrades, and stash?",
         msg_reset_confirm_2: "Final confirmation of deletion. This action cannot be undone!",
         msg_reset_done: "Save successfully deleted. Reloading the game...",
-        msg_died_log: "<img src=\"Ui/Dead.png\" class=\"ui-icon\"> YOU LOST CONSCIOUSNESS. All pocket contents have been lost.",
+        msg_died_log: "<img src=\"Ui/Dead.png\" class=\"ui-icon\"> YOU LOST CONSCIOUSNESS. Pocket loot and 80% of gathered resources have been lost.",
         msg_raid_start_log: "--- NEW RAID STARTED (THREAT: LVL {lvl}) ---",
         
         stats_header: "RAID STATISTICS:",
@@ -391,7 +392,8 @@ const i18n = {
         msg_extraction_available: "Evacuation available! You can return to camp.",
         modal_title_return: "RETURN TO CAMP",
         msg_enemy_drop_food: "<img src=\"Ui/Heart.png\" class=\"ui-icon\"> Enemy dropped a drumstick!",
-        msg_enemy_drop_potion: "<img src=\"Ui/Heart.png\" class=\"ui-icon\"> Enemy dropped a small potion!"
+        msg_enemy_drop_potion: "<img src=\"Ui/Heart.png\" class=\"ui-icon\"> Enemy dropped a small potion!",
+        hub_pockets_title: "TO RAID (POCKETS)"
     }
 };
 
@@ -463,7 +465,7 @@ function applyLanguage() {
     const resetBtn = document.querySelector('.btn-reset');
     if (resetBtn) resetBtn.innerText = t('btn_reset_save');
     
-    const stashTitle = document.querySelector('[data-container="stash"]').previousElementSibling.querySelector('h2') || document.querySelector('#hub-screen div:nth-child(2) h2');
+    const stashTitle = document.getElementById('stash-title-text') || document.querySelector('[data-container="stash"]').previousElementSibling.querySelector('h2') || document.querySelector('#hub-screen div:nth-child(2) h2');
     if (stashTitle) stashTitle.innerText = t('stash_title');
     
     const heroTitle = document.querySelector('#hub-screen div:nth-child(3) h2');
@@ -536,8 +538,11 @@ function applyLanguage() {
     const raidArmLabel = document.getElementById('raid-arm-label');
     if (raidArmLabel) raidArmLabel.innerHTML = t('gui_arm');
     
-    const pocketsLabel = document.querySelector('#pockets-grid').previousElementSibling;
-    if (pocketsLabel) pocketsLabel.innerText = t('gui_pockets');
+    const raidPocketsLabel = document.getElementById('raid-pockets-title');
+    if (raidPocketsLabel) raidPocketsLabel.innerText = t('gui_pockets');
+
+    const hubPocketsLabel = document.getElementById('hub-pockets-title');
+    if (hubPocketsLabel) hubPocketsLabel.innerText = t('hub_pockets_title');
     
     const ruBtn = document.getElementById('lang-ru-btn');
     const enBtn = document.getElementById('lang-en-btn');

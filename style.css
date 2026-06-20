@@ -304,6 +304,18 @@ canvas {
     z-index: 50;
 }
 
+/* Миникарта */
+#minimapCanvas {
+    width: 80px;
+    height: 80px;
+    background: #000;
+    border: 3px solid #2e5060;
+    border-radius: 4px;
+    image-rendering: pixelated;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.8);
+    order: 1;
+}
+
 /* Кнопка пада камеры */
 #camera-pad {
     width: 120px;
@@ -316,6 +328,7 @@ canvas {
     border: 2px solid rgba(255, 255, 255, 0.2);
     border-radius: 8px;
     padding: 6px;
+    order: 3;
 }
 
 .cam-btn {
@@ -370,6 +383,7 @@ canvas {
     text-align: center;
     transition: background 0.2s, color 0.2s, border-color 0.2s, box-shadow 0.2s;
     line-height: 1.4;
+    order: 2;
 }
 
 #btn-return-camp:hover {
@@ -721,12 +735,20 @@ canvas {
         writing-mode: vertical-rl; /* текст вертикально */
         text-orientation: mixed;
         letter-spacing: 1px;
+        order: 1;
     }
 
     #camera-pad {
         position: relative;
         left: auto;
         bottom: auto;
+        order: 2;
+    }
+
+    #minimapCanvas {
+        width: 120px;
+        height: 120px;
+        order: 3;
     }
 
     #board-wrapper {
@@ -778,4 +800,48 @@ html {
     align-items: center;
     gap: 6px;
     white-space: nowrap;
+}
+
+/* Стили для вкладок хранилища */
+.stash-tab {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 8px;
+    padding: 6px 8px;
+    background: #4e3629; /* Темно-коричневый / под дерево */
+    color: #c6a07e; /* Светло-бежевый */
+    border: 2px solid #6b4c35;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    cursor: pointer;
+    text-align: center;
+    transition: background 0.1s, color 0.1s, border-color 0.1s;
+    outline: none;
+    flex: 1;
+}
+
+.stash-tab:hover {
+    background: #6d4c38;
+    color: #ffcc00;
+    border-color: #926647;
+}
+
+.stash-tab.active {
+    background: #1a1a1a; /* Совпадает с фоном сетки */
+    color: #ffcc00;
+    border: 2px solid #555;
+    border-bottom: none;
+    margin-bottom: -2px; /* Наползает на сетку, скрывая ее верхнюю границу */
+    z-index: 2;
+}
+
+.stash-tab.locked {
+    background: #2b2b2b;
+    color: #666;
+    border-color: #444;
+}
+
+.stash-tab.locked:hover {
+    background: #3a3a3a;
+    color: #ff5555;
+    border-color: #555;
 }

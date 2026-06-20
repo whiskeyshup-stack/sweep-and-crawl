@@ -26,7 +26,13 @@ function showHub() {
     if (eqPanel) {
         document.getElementById('equipment-parent-hub').appendChild(eqPanel);
     }
+    const pocketsGrid = document.getElementById('pockets-grid');
+    if (pocketsGrid) {
+        document.getElementById('pockets-parent-hub').appendChild(pocketsGrid);
+    }
 
+    player.unlockedStashTabs = player.unlockedStashTabs || 1;
+    player.activeStashTab = player.activeStashTab || 0;
     player.hp = player.maxHp;
     player.isInvulnerable = false;
     player.invulnCharges = 0;
@@ -152,6 +158,10 @@ function startRaid() {
     if (eqPanel) {
         document.getElementById('equipment-parent-raid').appendChild(eqPanel);
     }
+    const pocketsGrid = document.getElementById('pockets-grid');
+    if (pocketsGrid) {
+        document.getElementById('pockets-parent-raid').appendChild(pocketsGrid);
+    }
     let activeLevel = Math.min(3, player.selectedRaidLevel !== undefined ? player.selectedRaidLevel : (player.raidLevel || 0));
 
     let sizeMultiplier = 30 / BASE_MAP_W;  // L0 = 30×30
@@ -227,9 +237,18 @@ function die() {
     logEvent(t('msg_died_log'), "log-error");
     stopMusic();
     playSound('gameover');
+
+    if (window.raidStats) {
+        let goldLost = Math.floor(window.raidStats.goldLooted * 0.8);
+        let shardsLost = Math.floor(window.raidStats.shardsLooted * 0.8);
+        player.gold = Math.max(0, player.gold - goldLost);
+        player.shards = Math.max(0, player.shards - shardsLost);
+    }
+
     items = items.filter(it => it.container !== 'pockets');
+    saveGame();
     showHub();
-    showCustomModal(t('msg_defeat_text') + getRaidStatsSummary(), t('modal_title_defeat'));
+    showCustomModal(t('msg_defeat_text') + getRaidStatsSummary(true), t('modal_title_defeat'));
 }
 
 // --- ЛОКАЛЬНОЕ СОХРАНЕНИЕ ---
@@ -267,8 +286,15 @@ function loadGame() {
             }
             applyLanguage();
 
+            // Migration and initialization for stash tabs
+            player.unlockedStashTabs = player.unlockedStashTabs || 1;
+            player.activeStashTab = player.activeStashTab || 0;
+
             items.forEach(it => {
-                if (it.container === 'pockets') it.container = 'stash';
+                // Migrate old stash items to stash_0
+                if (it.container === 'stash') {
+                    it.container = 'stash_0';
+                }
             });
 
             console.log("Прогресс успешно загружен!");

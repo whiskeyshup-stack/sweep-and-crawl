@@ -270,14 +270,14 @@ function generateLevel(sX, sY) {
         }
     }
 
-    // 4. Спавн сундуков (Шанс снижен до 1%)
+    // 4. Спавн сундуков (Шанс повышен до 1.5%)
     let destinations = [];
     for (let x = 0; x < MAP_W; x++) {
         for (let y = 0; y < MAP_H; y++) {
             let dist = Math.sqrt((x - sX) ** 2 + (y - sY) ** 2);
             if (dist <= SAFE_RADIUS) continue;
             if (!grid[x][y].isMine && !grid[x][y].isEnemy && !grid[x][y].isTree && !grid[x][y].isBush && !grid[x][y].isVegetation && !grid[x][y].isRock) {
-                if (Math.random() < 0.01) {
+                if (Math.random() < 0.015) {
                     grid[x][y].isChest = true;
                     grid[x][y].chestLvl = Math.max(1, Math.floor(dist / 4));
                     destinations.push({ x: x, y: y });
@@ -763,7 +763,7 @@ function battleEnemy(cell, cx, cy) {
             window.raidStats.shardsLooted += cell.lvl * 2;
         }
 
-        let dropChance = 0.05 + (cell.lvl * 0.02);
+        let dropChance = 0.075 + (cell.lvl * 0.03);
         if (Math.random() < dropChance) {
             cell.isChest = true;
             cell.chestLvl = cell.lvl;
@@ -890,7 +890,7 @@ function processRaidVictory(isFullClear = false) {
     stopMusic();
     playSound('victory');
 
-    items.forEach(it => { if (it.container === 'pockets') it.container = 'stash'; });
+    movePocketsToStash();
 
     if (typeof saveGame === 'function') {
         saveGame();
@@ -957,7 +957,7 @@ async function returnToCamp() {
         processRaidVictory(false);
     } else {
         // Просто уходим — лут сохраняем, победа не засчитывается
-        items.forEach(it => { if (it.container === 'pockets') it.container = 'stash'; });
+        movePocketsToStash();
         hideReturnToCampButton();
         showHub();
         showCustomModal(t('msg_tp_success') + getRaidStatsSummary(), t('modal_title_evac'));
@@ -984,10 +984,10 @@ function lootChest(cell, cx, cy) {
     let r = Math.random();
     let item = null;
 
-    let redChance = 0.10 + (lvl * 0.015);
-    let greenChance = 0.35 + (lvl * 0.01);
+    let redChance = 0.025 + (lvl * 0.01);
+    let greenChance = 0.125 + (lvl * 0.0125);
 
-    if (r < 0.20) {
+    if (r < 0.25) {
         let wR = Math.random();
         let rarity, nameKey, img, qualityVal;
         if (wR < redChance) {
@@ -1019,7 +1019,7 @@ function lootChest(cell, cx, cy) {
             val: qualityVal * lvl,
             img: img
         };
-    } else if (r < 0.40) {
+    } else if (r < 0.50) {
         let aR = Math.random();
         let rarity, nameKey, img, qualityVal;
         if (aR < redChance) {
@@ -1051,7 +1051,7 @@ function lootChest(cell, cx, cy) {
             val: qualityVal * lvl,
             img: img
         };
-    } else if (r < 0.60) {
+    } else if (r < 0.80) {
         let hR = Math.random();
         if (hR < 0.5) {
             item = { id: 'food_' + Date.now(), nameKey: 'name_food', name: t('name_food'), w: 1, h: 1, rarity: 'white', type: 'food', img: 'f1' };
@@ -1060,9 +1060,9 @@ function lootChest(cell, cx, cy) {
         } else {
             item = { id: 'p_big_' + Date.now(), nameKey: 'name_potion_big', name: t('name_potion_big'), w: 1, h: 1, rarity: 'green', type: 'potion_big', img: 'heal_big' };
         }
-    } else if (r < 0.85) {
+    } else if (r < 0.96) {
         let sR = Math.random();
-        if (sR < 0.6) {
+        if (sR < 0.85) {
             item = { id: 'scr_dmg_' + Date.now(), nameKey: 'name_scroll_dmg', name: t('name_scroll_dmg'), w: 1, h: 2, rarity: 'white', type: 'scroll_dmg', img: 'scroll_dmg' };
         } else {
             item = { id: 'scr_invis_' + Date.now(), nameKey: 'name_scroll_invis', name: t('name_scroll_invis'), w: 1, h: 2, rarity: 'green', type: 'scroll_invis', img: 'scroll_invis' };

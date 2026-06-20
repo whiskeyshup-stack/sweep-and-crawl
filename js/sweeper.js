@@ -906,6 +906,75 @@ function drawBoard() {
 
     // Отрисовка активных анимационных эффектов поверх всего
     drawEffects();
+
+    // Отрисовка миникарты
+    drawMinimap();
+
+    // Обновление счетчика добычи за рейд
+    updateRaidLootCounter();
+}
+
+// Простая пиксельная миникарта
+function drawMinimap() {
+    const canvasMinimap = document.getElementById('minimapCanvas');
+    if (!canvasMinimap || gameState !== 'RAID') return;
+    const ctxM = canvasMinimap.getContext('2d');
+    
+    // Устанавливаем внутреннее разрешение миникарты равным количеству тайлов (MAP_W x MAP_H)
+    canvasMinimap.width = MAP_W;
+    canvasMinimap.height = MAP_H;
+    
+    ctxM.clearRect(0, 0, MAP_W, MAP_H);
+    
+    // Рисуем каждую клетку пиксель за пикселем
+    for (let x = 0; x < MAP_W; x++) {
+        for (let y = 0; y < MAP_H; y++) {
+            let cell = grid[x][y];
+            if (!cell) continue;
+            
+            if (cell.isRevealed) {
+                if (cell.isMine) {
+                    ctxM.fillStyle = '#ef5350'; // Красный (мина)
+                } else if (cell.isChest) {
+                    ctxM.fillStyle = '#ffcc00'; // Золотой (сундук)
+                } else if (cell.isEnemy) {
+                    ctxM.fillStyle = '#9c27b0'; // Фиолетовый (враг)
+                } else {
+                    ctxM.fillStyle = '#3e5c3f'; // Обычный зачищенный пол (зеленый)
+                }
+            } else if (cell.isFlagged) {
+                ctxM.fillStyle = '#ffaa00'; // Оранжевый (флаг)
+            } else {
+                ctxM.fillStyle = '#1b262c'; // Тёмно-синий/чёрный (туман войны)
+            }
+            ctxM.fillRect(x, y, 1, 1);
+        }
+    }
+    
+    // Вычисляем границы отображения камеры в координатах сетки
+    let camCellX = Math.floor(cameraX / CELL_SIZE);
+    let camCellY = Math.floor(cameraY / CELL_SIZE);
+    let camCellW = Math.ceil(VIEWPORT_W / CELL_SIZE);
+    let camCellH = Math.ceil(VIEWPORT_H / CELL_SIZE);
+    
+    // Рисуем рамку вьюпорта камеры белым цветом
+    ctxM.strokeStyle = '#ffffff';
+    ctxM.lineWidth = 1;
+    ctxM.strokeRect(camCellX + 0.5, camCellY + 0.5, camCellW - 1, camCellH - 1);
+}
+
+// Обновление отображения золота и осколков, найденных за рейд
+function updateRaidLootCounter() {
+    const goldEl = document.getElementById('raid-loot-gold');
+    const shardsEl = document.getElementById('raid-loot-shards');
+    
+    if (window.raidStats) {
+        if (goldEl) goldEl.innerHTML = `+${window.raidStats.goldLooted} <img src="Ui/Coin.png" class="ui-icon">`;
+        if (shardsEl) shardsEl.innerHTML = `+${window.raidStats.shardsLooted} <img src="Ui/SoulShard.png" class="ui-icon">`;
+    } else {
+        if (goldEl) goldEl.innerHTML = `+0 <img src="Ui/Coin.png" class="ui-icon">`;
+        if (shardsEl) shardsEl.innerHTML = `+0 <img src="Ui/SoulShard.png" class="ui-icon">`;
+    }
 }
 
 // Вспомогательная функция отрисовки кружка и цифры

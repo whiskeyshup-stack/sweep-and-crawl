@@ -29,10 +29,125 @@ function findFreeSpace(w, h, containerName) {
     return null;
 }
 
+function renderStashTabs() {
+    const tabsEl = document.getElementById('stash-tabs');
+    if (!tabsEl) return;
+    tabsEl.innerHTML = '';
+
+    const TAB_PRICES = [0, 200, 500, 1000, 2000];
+    let unlocked = player.unlockedStashTabs || 1;
+    let active = player.activeStashTab || 0;
+
+    for (let i = 0; i < 5; i++) {
+        const tabBtn = document.createElement('button');
+        tabBtn.className = 'stash-tab';
+        
+        const isUnlocked = i < unlocked;
+        const isActive = i === active;
+
+        if (isActive) {
+            tabBtn.classList.add('active');
+        } else if (!isUnlocked) {
+            tabBtn.classList.add('locked');
+        }
+
+        if (isUnlocked) {
+            tabBtn.innerText = `${i + 1}`;
+        } else {
+            tabBtn.innerText = `${i + 1}🔒`;
+        }
+
+        tabBtn.onclick = async () => {
+            playSound('button');
+            if (isUnlocked) {
+                player.activeStashTab = i;
+                renderInventory();
+                saveGame();
+            } else {
+                if (i === player.unlockedStashTabs) {
+                    const price = TAB_PRICES[i];
+                    const confirmMsg = window.currentLanguage === 'en'
+                        ? `Buy tab ${i + 1} for ${price} gold?`
+                        : `Купить вкладку ${i + 1} за ${price} золота?`;
+                    
+                    const title = window.currentLanguage === 'en' ? 'Stash Upgrade' : 'Улучшение склада';
+                    const buy = await showCustomModal(confirmMsg, title, true);
+                    if (buy) {
+                        if (player.gold >= price) {
+                            player.gold -= price;
+                            player.unlockedStashTabs = (player.unlockedStashTabs || 1) + 1;
+                            player.activeStashTab = i;
+                            logEvent(
+                                window.currentLanguage === 'en'
+                                    ? `Unlocked stash tab ${i + 1}!`
+                                    : `Открыта новая вкладка склада ${i + 1}!`,
+                                'log-loot'
+                            );
+                            playSound('shop' + (Math.floor(Math.random() * 3) + 1));
+                            const goldEl = document.getElementById('hub-gold');
+                            if (goldEl) goldEl.innerText = player.gold;
+                            
+                            renderInventory();
+                            saveGame();
+                        } else {
+                            const errorMsg = window.currentLanguage === 'en'
+                                ? 'Not enough gold!'
+                                : 'Недостаточно золота!';
+                            logEvent(errorMsg, 'log-error');
+                        }
+                    }
+                } else {
+                    const orderMsg = window.currentLanguage === 'en'
+                        ? 'Unlock previous tabs first!'
+                        : 'Сначала откройте предыдущую вкладку!';
+                    logEvent(orderMsg, 'log-error');
+                }
+            }
+        };
+
+        tabsEl.appendChild(tabBtn);
+    }
+}
+
+function movePocketsToStash() {
+    let pocketItems = items.filter(it => it.container === 'pockets');
+    pocketItems.forEach(it => {
+        let moved = false;
+        let tabs = player.unlockedStashTabs || 1;
+        for (let t = 0; t < tabs; t++) {
+            let containerName = `stash_${t}`;
+            let pos = findFreeSpace(it.w, it.h, containerName);
+            if (pos) {
+                it.x = pos.x;
+                it.y = pos.y;
+                it.container = containerName;
+                moved = true;
+                break;
+            }
+        }
+    });
+}
+
 function renderInventory() {
-    Object.values(GRIDS).forEach(g => g.el.innerHTML = '');
+    if (gameState === 'HUB') {
+        renderStashTabs();
+    }
+
+    Object.values(GRIDS).forEach(g => {
+        if (g.el) g.el.innerHTML = '';
+    });
 
     items.forEach((item, index) => {
+        // Skip rendering stash items that are not in the active stash tab
+        let activeTab = player.activeStashTab || 0;
+        if (item.container.startsWith('stash_') && item.container !== `stash_${activeTab}`) {
+            return;
+        }
+        // Backward compatibility
+        if (item.container === 'stash') {
+            item.container = 'stash_0';
+        }
+
         let el = document.createElement('div');
         el.className = `inv-item rarity-${item.rarity}`;
         el.style.width = `${item.w * TILE_SIZE}px`;
@@ -44,7 +159,6 @@ function renderInventory() {
         if (images[item.img] && images[item.img].complete) {
             let img = document.createElement('img');
             img.src = images[item.img].src;
-            // Если предмет повернут, применяем CSS-трансформацию поворота
             if (item.isRotated) {
                 img.style.position = 'absolute';
                 img.style.left = '50%';
@@ -62,7 +176,6 @@ function renderInventory() {
             el.innerText = getItemName(item).substring(0, 4);
         }
 
-        // Открытие контекстного меню при правом клике
         el.addEventListener('contextmenu', e => {
             e.preventDefault();
             e.stopPropagation();
@@ -71,10 +184,9 @@ function renderInventory() {
             }
         });
         
-        // DRAG AND DROP (кастомная реализация) и открытие меню на левый клик/тап
         if (!item.container.startsWith('equip_')) {
             el.addEventListener('mousedown', e => {
-                if (e.button === 0) { // Только левый клик
+                if (e.button === 0) {
                     e.preventDefault();
                     e.stopPropagation();
                     initDragOrClick(index, e);
@@ -87,7 +199,6 @@ function renderInventory() {
                 initDragOrClick(index, e.touches[0]);
             }, { passive: false });
         } else {
-            // Если вещь надета (экипирована), левый клик сразу открывает контекстное меню (её нельзя таскать)
             el.addEventListener('click', e => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -103,7 +214,9 @@ function renderInventory() {
             }, { passive: false });
         }
 
-        GRIDS[item.container].el.appendChild(el);
+        if (GRIDS[item.container] && GRIDS[item.container].el) {
+            GRIDS[item.container].el.appendChild(el);
+        }
     });
     updateUi();
 }
@@ -322,8 +435,8 @@ async function useConsumable(item, index) {
         );
 
         if (choice) {
-            items.forEach(it => { if (it.container === 'pockets') it.container = 'stash'; });
             items.splice(index, 1); // Удаляем использованный свиток
+            movePocketsToStash(); // Переносим остальные вещи
             showHub();
             await showCustomModal(t('msg_tp_success') + getRaidStatsSummary(), t('modal_title_evac'));
         } else {
@@ -612,6 +725,7 @@ function dropDraggedItem(clientX, clientY) {
     
     for (let cName in GRIDS) {
         if (cName.startsWith('equip_')) continue;
+        if (cName.startsWith('stash_') && cName !== `stash_${player.activeStashTab || 0}`) continue;
         
         let gridDef = GRIDS[cName];
         let rect = gridDef.el.getBoundingClientRect();

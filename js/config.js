@@ -15,7 +15,9 @@ let player = {
     maxHp: 100, hp: 100, gold: 0, shards: 0,
     baseAtk: 5, armor: 0, isInvulnerable: false, invulnCharges: 0,
     wins: 0,        // НОВОЕ: Счетчик побед
-    raidLevel: 0    // НОВОЕ: Уровень усиления локации
+    raidLevel: 0,   // НОВОЕ: Уровень усиления локации
+    unlockedStashTabs: 1, // НОВОЕ: Количество открытых вкладок склада
+    activeStashTab: 0     // НОВОЕ: Текущая активная вкладка склада
 };
 
 // ГЛОБАЛЬНЫЙ ИНВЕНТАРЬ
@@ -23,7 +25,11 @@ let items = [];
 
 // Размеры сеток
 const GRIDS = {
-    'stash': { w: 12, h: 12, el: document.getElementById('stash-grid') },
+    'stash_0': { w: 8, h: 8, el: document.getElementById('stash-grid') },
+    'stash_1': { w: 8, h: 8, el: document.getElementById('stash-grid') },
+    'stash_2': { w: 8, h: 8, el: document.getElementById('stash-grid') },
+    'stash_3': { w: 8, h: 8, el: document.getElementById('stash-grid') },
+    'stash_4': { w: 8, h: 8, el: document.getElementById('stash-grid') },
     'pockets': { w: 6, h: 8, el: document.getElementById('pockets-grid') },
     'equip_sword': { w: 1, h: 3, el: document.getElementById('slot-sword'), restrict: 'weapon' },
     'equip_armor': { w: 2, h: 2, el: document.getElementById('slot-armor'), restrict: 'armor' }
@@ -339,7 +345,7 @@ function showCustomModal(message, title = null, showCancel = false) {
     });
 }
 
-function getRaidStatsSummary() {
+function getRaidStatsSummary(isDefeat = false) {
     if (!window.raidStats || !window.raidStats.startTime) return "";
     
     let clearancePct = 0;
@@ -352,14 +358,20 @@ function getRaidStatsSummary() {
     let sec = elapsed % 60;
     let timeStr = `${min}:${sec < 10 ? '0' : ''}${sec}`;
     
+    let goldFinal = isDefeat ? (window.raidStats.goldLooted - Math.floor(window.raidStats.goldLooted * 0.8)) : window.raidStats.goldLooted;
+    let shardsFinal = isDefeat ? (window.raidStats.shardsLooted - Math.floor(window.raidStats.shardsLooted * 0.8)) : window.raidStats.shardsLooted;
+    
+    let goldStr = `${goldFinal}`;
+    let shardsStr = `${shardsFinal}`;
+    
     return `\n\n${t('stats_header')}\n` +
            `${t('stats_clearance')} ${clearancePct}%\n` +
            `${t('stats_time')} ${timeStr}\n` +
            `${t('stats_killed')} ${window.raidStats.enemiesKilled}\n` +
            `${t('stats_chests')} ${window.raidStats.chestsOpened}\n` +
            `${t('stats_mines')} ${window.raidStats.minesTriggered}\n` +
-           `${t('stats_gold')} ${window.raidStats.goldLooted}<img src="Ui/Coin.png" class="ui-icon">\n` +
-           `${t('stats_shards')} ${window.raidStats.shardsLooted}<img src="Ui/SoulShard.png" class="ui-icon">`;
+           `${t('stats_gold')} ${goldStr}<img src="Ui/Coin.png" class="ui-icon">\n` +
+           `${t('stats_shards')} ${shardsStr}<img src="Ui/SoulShard.png" class="ui-icon">`;
 }
 
 let grid = [];
